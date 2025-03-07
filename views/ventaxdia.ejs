@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    /* Contenedor para la tabla con scroll vertical en la vista */
+    .table-container {
+      max-height: 800px; /* Esta altura limita la vista en pantalla */
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    /* Estilos básicos para la tabla */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    /* Encabezado fijo */
+    thead th {
+      position: sticky;
+      top: 0;
+      background-color: #f2f2f2;
+      z-index: 1;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    /* Estilos para el formulario */
+    form div {
+      margin-bottom: 10px;
+    }
+    label {
+      display: inline-block;
+      width: 150px;
+    }
+    input {
+      padding: 5px;
+      width: 200px;
+    }
+    button {
+      padding: 8px 16px;
+      margin: 5px;
+    }
+    /* Estilos para la fila de totales */
+    tfoot {
+      font-weight: bold;
+      background-color: #e2e2e2;
+    }
+    tfoot td {
+      border-top: 2px solid #333;
+    }
+    /* Estilo para filas duplicadas */
+    .duplicado {
+      background-color: #FFA500; /* Color naranja */
+    }
+    /* Estilos para el resumen final */
+    .resumen {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    .resumen p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1><%= title %></h1>
+  
+  <form action="/ventaxdia" method="POST">
+    <div>
+      <label for="cod_rep">Código Representante:</label>
+      <input type="text" id="cod_rep" name="cod_rep" value="<%= parametros.cod_rep || '' %>" required>
+    </div>
+    <div>
+      <label for="fecha">Fecha:</label>
+      <input type="date" id="fecha" name="fecha" value="<%= parametros.fecha || '' %>" required>
+    </div>
+    <div>
+      <label for="cod_zona">Zona:</label>
+      <input type="text" id="cod_zona" name="cod_zona" value="<%= parametros.cod_zona || '' %>" required>
+    </div>
+    <button type="submit">Consultar</button>
+  </form>
+
+  <% if (resultados && resultados.length > 0) { %>
+    <h2>Resultados</h2>
+    <!-- Contenedor padre para la tabla y el resumen -->
+    <div id="pdfContainer">
+      <!-- Contenedor que se muestra en pantalla y se usará para clonar la grilla completa -->
+      <div class="table-container" id="tablaPDF">
+        <table id="miTabla">
+          <thead>
+            <tr>
+              <th>Código Cliente</th>
+              <th>Nombre Cliente</th>
+              <th>Código Producto</th>
+              <th>Debe</th>
+              <th>Venta</th>
+              <th>Cobrado CDTO</th>
+              <th>Cobrado CCTE</th>
+              <th>Saldo Final</th>
+              <th>Bidones Bajados</th>
+              <th>Motivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% 
+              // Totales generales
+              let totalDebe = 0;
+              let totalVenta = 0;
+              let totalCobradoCDTO = 0;
+              let totalCobradoCCTE = 0;
+              let totalBidonesBajados = 0;
+              let totalSaldo = 0;
+              // Totales por producto A3 y A4
+              let totalA3Vendidos = 0, totalA4Vendidos = 0;
+              let totalA3Contado = 0, totalA4Contado = 0;
+              let totalA3Fio = 0, totalA4Fio = 0;
+              // Para evitar duplicados en caso de combinar clientes y productos
+              let combinacionesVistas = {};
+            %>
+            <% resultados.forEach(function(row) { 
+                const debe = parseFloat(row.debe_total) || 0;
+                const venta = parseFloat(row.venta) || 0;
+                const cobradoCDTO = parseFloat(row.cobrado_ctdo) || 0;
+                const cobradoCCTE = parseFloat(row.cobrado_ccte) || 0;
+                const saldo = debe + venta - cobradoCDTO - cobradoCCTE;
+                
+                totalDebe += debe;
+                totalVenta += venta;
+                totalCobradoCDTO += cobradoCDTO;
+                totalCobradoCCTE += cobradoCCTE;
+                totalBidonesBajados += parseFloat(row.bidones_bajados) || 0;
+                totalSaldo += saldo;
+                
+                // Acumular totales por producto (asumiendo que row.cod_prod es 'A3' o 'A4')
+                if(row.cod_prod === 'A3'){
+                  totalA3Vendidos += parseFloat(row.bidones_bajados) || 0;
+                  totalA3Contado += cobradoCDTO;
+                  totalA3Fio += venta - cobradoCDTO;
+                } else if(row.cod_prod === 'A4'){
+                  totalA4Vendidos += parseFloat(row.bidones_bajados) || 0;
+                  totalA4Contado += cobradoCDTO;
+                  totalA4Fio += venta - cobradoCDTO;
+                }
+                
+                let clave = row.cod_cliente + '-' + row.cod_prod;
+                let esDuplicado = combinacionesVistas[clave] ? true : false;
+                combinacionesVistas[clave] = true;
+            %>
+              <tr class="<%= esDuplicado ? 'duplicado' : '' %>">
+                <td><%= row.cod_cliente %></td>
+                <td><%= row.nom_cliente %></td>
+                <td><%= row.cod_prod %></td>
+                <td><%= debe.toFixed(2) %></td>
+                <td><%= venta.toFixed(2) %></td>
+                <td><%= cobradoCDTO.toFixed(2) %></td>
+                <td><%= cobradoCCTE.toFixed(2) %></td>
+                <td><%= saldo.toFixed(2) %></td>
+                <td><%= row.bidones_bajados %></td>
+                <td><%= row.motivo %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+          <% if (totales) { %>
+            <tfoot>
+              <tr>
+                <td colspan="3">Totales</td>
+                <td><%= totalDebe.toFixed(2) %></td>
+                <td><%= totalVenta.toFixed(2) %></td>
+                <td><%= totalCobradoCDTO.toFixed(2) %></td>
+                <td><%= totalCobradoCCTE.toFixed(2) %></td>
+                <td><%= totalSaldo.toFixed(2) %></td>
+                <td><%= totalBidonesBajados.toFixed(2) %></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          <% } %>
+        </table>
+      </div>
+      
+      <!-- Sección de resumen extra -->
+      <div class="resumen">
+        <p>Cantidad de bidones A3 vendidos: <strong><%= totalA3Vendidos %></strong></p>
+        <p>Cantidad de bidones A4 vendidos: <strong><%= totalA4Vendidos %></strong></p>
+        <p>Monto cobrado de contado para A3: <strong><%= totalA3Contado.toFixed(2) %></strong></p>
+        <p>Monto cobrado de contado para A4: <strong><%= totalA4Contado.toFixed(2) %></strong></p>
+        <p>Monto a crédito (fío) para A3: <strong><%= totalA3Fio.toFixed(2) %></strong></p>
+        <p>Monto a crédito (fío) para A4: <strong><%= totalA4Fio.toFixed(2) %></strong></p>
+      </div>
+    </div>
+    
+    <!-- Botones para descargar el PDF y volver al menú -->
+    <button onclick="generarPDF()">Descargar PDF</button>
+    <button onclick="location.href='/menu'">Volver</button>
+  <% } else if (resultados) { %>
+    <p>No se encontraron resultados para los parámetros proporcionados.</p>
+    <button onclick="location.href='/menu'">Volver</button>
+  <% } %>
+
+  <!-- Librerías para generar PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    function generarPDF() {
+      // Clonar el contenedor que incluye la tabla y el resumen
+      const contenedorOriginal = document.getElementById('pdfContainer');
+      const clon = contenedorOriginal.cloneNode(true);
+
+      // Forzar que los contenedores sincronicen su altura completa
+      clon.style.maxHeight = "none";
+      clon.style.overflow = "visible";
+      // Remover restricciones de scroll en la tabla
+      clon.querySelectorAll('.table-container').forEach(el => {
+        el.style.maxHeight = "none";
+        el.style.overflow = "visible";
+      });
+      // Quitar posición sticky de los encabezados
+      clon.querySelectorAll("thead th").forEach(el => {
+        el.style.position = "static";
+      });
+      
+      // Crear un contenedor temporal fuera de la vista
+      const contenedorTemporal = document.createElement('div');
+      contenedorTemporal.style.position = 'absolute';
+      contenedorTemporal.style.top = '-10000px';
+      contenedorTemporal.appendChild(clon);
+      document.body.appendChild(contenedorTemporal);
+      
+      html2canvas(clon, { useCORS: true, scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth(); // ancho de la página en mm
+        const pageHeight = pdf.internal.pageSize.getHeight(); // alto de la página en mm
+        // Calcular el alto de la imagen en el PDF manteniendo la proporción
+        const imgHeight = canvas.height * pageWidth / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        // Mientras quede contenido por agregar, crea una nueva página y añade la imagen con el offset correspondiente.
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+        
+        pdf.save('grilla.pdf');
+        document.body.removeChild(contenedorTemporal);
+      });
+    }
+  </script>
+</body>
+</html>

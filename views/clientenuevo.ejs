@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    /* Estilos básicos para la grilla */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    form {
+      display: inline;
+    }
+    button.delete {
+      background-color: #e74c3c;
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    button.delete:hover {
+      background-color: #c0392b;
+    }
+  </style>
+</head>
+<body>
+  <h1><%= title %></h1>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Razón</th>
+        <th>Localidad</th>
+        <th>Celular</th>
+        <th>Bidón</th>
+        <th>Cantidad</th>
+        <th>NumZona</th>
+        <th>Secuencia</th>
+        <th>Pago</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (resultados && resultados.length > 0) { %>
+        <% resultados.forEach(function(row) { %>
+          <tr>
+            <td><%= row.id %></td>
+            <td><%= row.razon %></td>
+            <td><%= row.localidad %></td>
+            <td><%= row.celular %></td>
+            <td><%= row.bidon %></td>
+            <td><%= row.cantidad %></td>
+            <td><%= row.numzona %></td>
+            <td><%= row.secuencia %></td>
+            <td><%= row.pago %></td>
+            <td>
+              <form action="/clientenuevo/eliminar/<%= row.id %>" method="POST" onsubmit="return confirm('¿Seguro que desea eliminar este registro?');">
+                <button type="submit" class="delete">Eliminar</button>
+              </form>
+            </td>
+            <button onclick="location.href='/menu'">Volver</button>
+          </tr>
+        <% }); %>
+      <% } else { %>
+        <tr>
+          <td colspan="10">No se encontraron registros.</td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</body>
+</html>

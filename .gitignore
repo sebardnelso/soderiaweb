@@ -1,0 +1,5 @@
+# Archivo de variables de entorno
+.env
+
+# Carpeta de módulos de Node
+node_modules/
