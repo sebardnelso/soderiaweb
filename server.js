@@ -121,7 +121,7 @@ app.post('/ventaxdia', async (req, res) => {
       GROUP BY 
         hc.cod_cliente, sh.nom_cliente, hc.cod_prod, hc.venta, hc.cobrado_ctdo, hc.cobrado_ccte, hc.bidones_bajados, hc.motivo, hh_max.secuencia
       ORDER BY 
-        hh_max.secuencia
+        hh_max.secuencia ASC
     `;
 
     const [results] = await req.db.query(query, [cod_rep, fecha, cod_zona]);
