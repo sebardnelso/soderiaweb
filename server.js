@@ -126,7 +126,7 @@ app.post('/ventaxdia', async (req, res) => {
 
     const [results] = await req.db.query(query, [cod_rep, fecha, cod_zona]);
 
-    // Calcular totales
+    // Calcular totales generales (si es necesario para otros usos)
     let totalVenta = 0;
     let totalCobradoCDTO = 0;
     let totalCobradoCCTE = 0;
@@ -139,6 +139,19 @@ app.post('/ventaxdia', async (req, res) => {
       totalBidonesBajados += parseFloat(row.bidones_bajados) || 0;
     });
 
+    // Obtener los precios de la tabla soda_precio
+    const [prices] = await req.db.query('SELECT cod_prod, precio FROM soda_precios');
+    let priceA3 = 0, priceA4 = 0;
+    prices.forEach(item => {
+      if (item.cod_prod === 'A3') {
+        priceA3 = parseFloat(item.precio) || 0;
+      }
+      if (item.cod_prod === 'A4') {
+        priceA4 = parseFloat(item.precio) || 0;
+      }
+    });
+
+    // Renderizamos la vista pasando los resultados, parámetros, totales y precios
     res.render('ventaxdia', {
       title: 'Venta por Día',
       resultados: results,
@@ -148,7 +161,10 @@ app.post('/ventaxdia', async (req, res) => {
         cobrado_ctdo: totalCobradoCDTO,
         cobrado_ccte: totalCobradoCCTE,
         bidones_bajados: totalBidonesBajados
-      }
+      },
+      // Pasamos los precios para cada producto
+      priceA3,
+      priceA4
     });
   } catch (err) {
     console.error('Error ejecutando la consulta:', err);
