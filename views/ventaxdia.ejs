@@ -67,6 +67,11 @@
     .resumen p {
       margin: 5px 0;
     }
+    .detalle {
+      margin-left: 40px;
+      font-style: italic;
+      font-size: 0.95em;
+    }
   </style>
 </head>
 <body>
@@ -121,9 +126,9 @@
               // Totales por producto A3 y A4
               let totalA3Vendidos = 0, totalA4Vendidos = 0;
               let totalA3Contado = 0, totalA4Contado = 0;
-              // "Lo fiado" es la diferencia entre venta y cobrado CDTO
+              // "Lo fiado" es la diferencia entre venta y cobrado de contado
               let totalA3Fio = 0, totalA4Fio = 0;
-              // NUEVAS variables para Venta Cuenta Corriente
+              // Variables para Cobrado Cuenta Corriente
               let totalA3CuentaCorriente = 0, totalA4CuentaCorriente = 0;
               // Para evitar duplicados en caso de combinar clientes y productos
               let combinacionesVistas = {};
@@ -142,20 +147,16 @@
                 totalBidonesBajados += parseFloat(row.bidones_bajados) || 0;
                 totalSaldo += saldo;
                 
-                // Acumular totales por producto (asumiendo que row.cod_prod es 'A3' o 'A4')
+                // Acumular totales por producto (A3 o A4)
                 if(row.cod_prod === 'A3'){
                   totalA3Vendidos += parseFloat(row.bidones_bajados) || 0;
                   totalA3Contado += cobradoCDTO;
-                  // Lo fiado es la diferencia entre venta y cobrado de contado
                   totalA3Fio += venta - cobradoCDTO;
-                  // Acumular venta cuenta corriente para A3
                   totalA3CuentaCorriente += cobradoCCTE;
                 } else if(row.cod_prod === 'A4'){
                   totalA4Vendidos += parseFloat(row.bidones_bajados) || 0;
                   totalA4Contado += cobradoCDTO;
-                  // Lo fiado es la diferencia entre venta y cobrado de contado
                   totalA4Fio += venta - cobradoCDTO;
-                  // Acumular venta cuenta corriente para A4
                   totalA4CuentaCorriente += cobradoCCTE;
                 }
                 
@@ -196,14 +197,62 @@
       
       <!-- Sección de resumen extra -->
       <div class="resumen">
-        <p>Cantidad de bidones A3 vendidos: <strong><%= totalA3Vendidos %></strong></p>
-        <p>Cantidad de bidones A4 vendidos: <strong><%= totalA4Vendidos %></strong></p>
-        <p>Monto cobrado de contado para A3: <strong><%= totalA3Contado.toFixed(2) %></strong></p>
-        <p>Monto cobrado de contado para A4: <strong><%= totalA4Contado.toFixed(2) %></strong></p>
-        <p>Cobrado cuenta corriente del día A3: <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong></p>
-        <p>Cobrado cuenta corriente del día A4: <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong></p>
-        <p>Lo fiado del día para A3: <strong><%= totalA3Fio.toFixed(2) %></strong></p>
-        <p>Lo fiado del día para A4: <strong><%= totalA4Fio.toFixed(2) %></strong></p>
+        <p>
+          Cantidad de bidones A3 vendidos: 
+          <strong><%= totalA3Vendidos %></strong>
+          <span class="detalle">
+            | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Vendidos %></strong> = $<strong><%= (totalA3Vendidos * priceA3).toFixed(2) %></strong>
+          </span>
+        </p>
+        <p>
+          Cantidad de bidones A4 vendidos: 
+          <strong><%= totalA4Vendidos %></strong>
+          <span class="detalle">
+            | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Vendidos %></strong> = $<strong><%= (totalA4Vendidos * priceA4).toFixed(2) %></strong>
+          </span>
+        </p>
+        <p>
+          Monto cobrado de contado para A3: 
+          <strong><%= totalA3Contado.toFixed(2) %></strong>
+          <span class="detalle">
+            | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Contado.toFixed(2) %></strong> = $<strong><%= (totalA3Contado * priceA3).toFixed(2) %></strong>
+          </span>
+        </p>
+        <p>
+          Monto cobrado de contado para A4: 
+          <strong><%= totalA4Contado.toFixed(2) %></strong>
+          <span class="detalle">
+            | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Contado.toFixed(2) %></strong> = $<strong><%= (totalA4Contado * priceA4).toFixed(2) %></strong>
+          </span>
+        </p>
+        <p>
+          Cobrado cuenta corriente del día A3: 
+          <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong>
+          <span class="detalle">
+            | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA3CuentaCorriente * priceA3).toFixed(2) %></strong>
+          </span>
+        </p>
+        <p>
+          Cobrado cuenta corriente del día A4: 
+          <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong>
+          <span class="detalle">
+            | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA4CuentaCorriente * priceA4).toFixed(2) %></strong>
+          </span>
+        </p>
+        <p>
+          Lo fiado del día para A3: 
+          <strong><%= totalA3Fio.toFixed(2) %></strong>
+          <span class="detalle">
+            | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Fio %></strong> = $<strong><%= (totalA3Fio * priceA3).toFixed(2) %></strong>
+          </span>
+        </p>
+        <p>
+          Lo fiado del día para A4: 
+          <strong><%= totalA4Fio.toFixed(2) %></strong>
+          <span class="detalle">
+            | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Fio %></strong> = $<strong><%= (totalA4Fio * priceA4).toFixed(2) %></strong>
+          </span>
+        </p>
       </div>
     </div>
     
@@ -272,3 +321,4 @@
   </script>
 </body>
 </html>
+s
