@@ -81,7 +81,14 @@ app.get('/ventaxdia', (req, res) => {
     parametros: {}
   });
 });
-
+// Ruta GET para renderizar el formulario ventaxdia
+app.get('/hojaruta', (req, res) => {
+  res.render('hojaruta', {
+    title: 'Hoja de ruta',
+    resultados: null,
+    parametros: {}
+  });
+});
 // Ruta POST para ventaxdia con async/await
 app.post('/ventaxdia', async (req, res) => {
   try {
