@@ -284,32 +284,27 @@ app.get('/hojaruta/pdf', async (req, res) => {
       return res.status(400).send('Faltan parámetros');
     }
 
-    // Reusa la misma consulta SQL de /hojaruta
     const sql = `
-    SELECT 
-      hh.cod_cliente,
-      hh.nom_cliente,
-      hc.cod_prod,
-      FLOOR((DAY(STR_TO_DATE(hc.fecha,'%Y-%m-%d'))-1)/7)+1 AS semana,
-      hh.saldi AS saldo_inicial,
-      SUM(hc.venta) AS venta,
-      SUM(hc.cobrado_ctdo) AS cobrado_ctdo,
-      SUM(hc.cobrado_ccte) AS cobrado_ccte
-    FROM soda_hoja_header hh
-    LEFT JOIN soda_hoja_completa hc
-      ON hh.cod_rep = hc.cod_rep
-     AND hh.cod_zona = hc.cod_zona
-     AND hh.cod_cliente = hc.cod_cliente
-     AND MONTH(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
-     AND YEAR(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
-    WHERE hh.cod_rep = ? AND hh.cod_zona = ?
-    GROUP BY hh.cod_cliente, hh.nom_cliente, hc.cod_prod, semana, hh.saldi
-    ORDER BY hh.cod_cliente, hc.cod_prod, semana;
-  `;
-  
+      SELECT hh.cod_cliente, hh.nom_cliente, hc.cod_prod,
+             FLOOR((DAY(STR_TO_DATE(hc.fecha,'%Y-%m-%d'))-1)/7)+1 AS semana,
+             hh.saldi AS saldo_inicial,
+             SUM(hc.venta) AS venta,
+             SUM(hc.cobrado_ctdo) AS cobrado_ctdo,
+             SUM(hc.cobrado_ccte) AS cobrado_ccte
+      FROM soda_hoja_header hh
+      LEFT JOIN soda_hoja_completa hc
+        ON hh.cod_rep = hc.cod_rep
+       AND hh.cod_zona = hc.cod_zona
+       AND hh.cod_cliente = hc.cod_cliente
+       AND MONTH(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
+       AND YEAR(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
+      WHERE hh.cod_rep = ? AND hh.cod_zona = ?
+      GROUP BY hh.cod_cliente, hh.nom_cliente, hc.cod_prod, semana, hh.saldi
+      ORDER BY hh.cod_cliente, hc.cod_prod, semana;
+    `;
+
     const [rows] = await req.db.query(sql, [mes, anio, cod_rep, cod_zona]);
 
-    // Construye pivot idéntico a /hojaruta
     const pivot = {};
     rows.forEach(r => {
       const key = `${r.cod_cliente}-${r.cod_prod}`;
@@ -320,32 +315,38 @@ app.get('/hojaruta/pdf', async (req, res) => {
         semanas: {1:{},2:{},3:{},4:{}}
       };
       pivot[key].semanas[r.semana] = {
-        saldo_inicial: Number(r.saldo_inicial)||0,
-        venta: Number(r.venta)||0,
-        cobrado_ctdo: Number(r.cobrado_ctdo)||0,
-        cobrado_ccte: Number(r.cobrado_ccte)||0,
+        saldo_inicial: +r.saldo_inicial||0,
+        venta: +r.venta||0,
+        cobrado_ctdo: +r.cobrado_ctdo||0,
+        cobrado_ccte: +r.cobrado_ccte||0,
         resultado: 0
       };
     });
     Object.values(pivot).forEach(client => {
-      let acc = client.semanas[1].saldo_inicial||0;
-      for (let w=1; w<=4; w++){
-        const s = client.semanas[w]||{venta:0,cobrado_ctdo:0,cobrado_ccte:0};
+      let acc = client.semanas[1].saldo_inicial || 0;
+      for (let w=1; w<=4; w++) {
+        const s = client.semanas[w] || { venta:0, cobrado_ctdo:0, cobrado_ccte:0 };
         s.resultado = acc + s.venta - s.cobrado_ctdo - s.cobrado_ccte;
         acc = s.resultado;
       }
     });
 
-    // Renderiza la misma vista a HTML
-    const html = await new Promise((resolve, reject) => {
-      res.render('hojaruta', { title:'Hoja Ruta', data:Object.values(pivot), params:{cod_rep,cod_zona,mes,anio} }, (err, html) => {
-        if (err) return reject(err);
-        resolve(html);
-      });
-    });
+    const html = await new Promise((resolve, reject) =>
+      res.render('hojaruta', { title:'Hoja Ruta', data:Object.values(pivot), params:{cod_rep,cod_zona,mes,anio} }, (err, html) =>
+        err ? reject(err) : resolve(html)
+      )
+    );
 
-    // Genera PDF
-    pdf.create(html, { format:'A4', orientation:'landscape' }).toStream((err, stream) => {
+    const pdfOptions = {
+      format: 'A4',
+      orientation: 'landscape',
+      border: '10mm',
+      paginationOffset: 0,
+      header: { height: '10mm' },
+      footer: { height: '10mm' }
+    };
+
+    pdf.create(html, pdfOptions).toStream((err, stream) => {
       if (err) return res.status(500).send('Error generando PDF');
       res.setHeader('Content-Type','application/pdf');
       res.setHeader('Content-Disposition','attachment; filename=hoja_ruta.pdf');
@@ -356,6 +357,7 @@ app.get('/hojaruta/pdf', async (req, res) => {
     res.status(500).send('Error en el servidor');
   }
 });
+
 
 
 // Ruta raíz (redirige a login)
