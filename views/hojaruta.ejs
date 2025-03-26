@@ -1,9 +1,86 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title><%= title %></title>
-</head>
+  <head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <style>
+      /* PAGINACIÓN PDF */
+      table { page-break-inside: auto; width:100%; border-collapse: collapse; font-size: 10px; }
+      tr    { page-break-inside: avoid; page-break-after: auto; }
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+  
+      /* ESTILO GENERAL */
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background-color: #f4f6f8;
+        margin: 0;
+        padding: 1rem;
+        color: #333;
+      }
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #007acc;
+        padding-bottom: .5rem;
+      }
+      form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem;
+        margin-bottom: 1rem;
+      }
+      form input {
+        padding: .3rem .5rem;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-size: .85rem;
+      }
+      form button {
+        padding: .5rem 1rem;
+        font-size: .9rem;
+        background-color: #007acc;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      form button:hover { background-color: #005fa3; }
+  
+      /* TABLA */
+      table {
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,.1);
+      }
+      th, td {
+        padding: .4rem .6rem;
+        border: 1px solid #e1e4e8;
+        text-align: center;
+        vertical-align: middle;
+      }
+      thead th {
+        background-color: #007acc;
+        color: #fff;
+        font-weight: 600;
+      }
+      tbody tr:nth-child(even) { background-color: #f9fafb; }
+      tbody tr:hover { background-color: #eef6fc; }
+  
+      /* BOTÓN DESCARGAR */
+      a button {
+        margin-bottom: 1rem;
+        padding: .5rem 1rem;
+        font-size: .9rem;
+        background-color: #28a745;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      a button:hover { background-color: #218838; }
+    </style>
+  </head>
+  
 <body>
   <h1>Hoja Ruta</h1>
 
