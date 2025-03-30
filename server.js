@@ -202,7 +202,6 @@ app.post('/clientenuevo/eliminar/:id', async (req, res) => {
 
 
 
-// Ruta GET para Hoja Ruta
 app.get('/hojaruta', async (req, res) => {
   try {
     const { cod_rep, cod_zona, mes, anio } = req.query;
@@ -229,7 +228,7 @@ app.get('/hojaruta', async (req, res) => {
        AND YEAR(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
       WHERE hh.cod_rep = ? AND hh.cod_zona = ?
       GROUP BY hh.cod_cliente, hh.nom_cliente, hc.cod_prod, semana, hh.saldi
-      ORDER BY hh.nom_cliente, hc.cod_prod, semana;
+      ORDER BY hh.secuencia ASC, hh.nom_cliente, hc.cod_prod, semana;
     `;
 
     const [rows] = await req.db.query(sql, [mes, anio, cod_rep, cod_zona]);
