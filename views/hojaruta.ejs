@@ -3,120 +3,181 @@
 <head>
   <meta charset="UTF-8">
   <title><%= title %></title>
+  <!-- Puedes enlazar tu CSS externo si lo tienes -->
+  <link rel="stylesheet" href="/css/styles.css">
   <style>
+    /* Contenedor para la tabla (sin scroll en el PDF) */
+    .table-container {
+      max-height: 800px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
     /* Estilos generales para la tabla */
     table {
       width: 100%;
       border-collapse: collapse;
-      page-break-inside: auto;
-    }
-    tr {
-      page-break-inside: avoid;
-      page-break-after: auto;
-    }
-    thead {
-      display: table-header-group;
-      background-color: #fff;
-    }
-    tfoot {
-      display: table-footer-group;
     }
     th, td {
-      padding: 8px;
+      padding: 8px 12px;
       border: 1px solid #000;
       text-align: center;
     }
+    /* Encabezado fijo (solo en la vista, se quitará para PDF) */
+    thead th {
+      position: sticky;
+      top: 0;
+      background-color: #f2f2f2;
+      z-index: 1;
+    }
     /* Clases para diferenciar semanas */
-    .week1 { background-color: #f2d7d5; } /* Rosa suave */
-    .week2 { background-color: #d5f5e3; } /* Verde claro */
-    .week3 { background-color: #d6eaf8; } /* Azul claro */
-    .week4 { background-color: #fcf3cf; } /* Amarillo suave */
+    .week1 { background-color: #f2d7d5; }
+    .week2 { background-color: #d5f5e3; }
+    .week3 { background-color: #d6eaf8; }
+    .week4 { background-color: #fcf3cf; }
+    /* Otros estilos del formulario */
+    form label {
+      margin-right: 10px;
+    }
+    form input {
+      margin-right: 20px;
+    }
+    button {
+      padding: 8px 16px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <h1>Hoja Ruta</h1>
-
+  
   <form method="get" action="/hojaruta">
-    <label>Rep:
-      <input name="cod_rep" value="<%= params.cod_rep || '' %>">
-    </label>
-    <label>Zona:
-      <input name="cod_zona" value="<%= params.cod_zona || '' %>">
-    </label>
-    <label>Mes:
-      <input name="mes" type="number" min="1" max="12" value="<%= params.mes || '' %>">
-    </label>
-    <label>Año:
-      <input name="anio" type="number" min="2000" value="<%= params.anio || '' %>">
-    </label>
-    <button>Filtrar</button>
+    <label>Rep: <input name="cod_rep" value="<%= params.cod_rep || '' %>"></label>
+    <label>Zona: <input name="cod_zona" value="<%= params.cod_zona || '' %>"></label>
+    <label>Mes: <input name="mes" type="number" min="1" max="12" value="<%= params.mes || '' %>"></label>
+    <label>Año: <input name="anio" type="number" min="2000" value="<%= params.anio || '' %>"></label>
+    <button type="submit">Filtrar</button>
   </form>
-
+  
   <% if (data.length) { %>
-    <p>
-      <a href="/hojaruta/pdf?cod_rep=<%= params.cod_rep %>&cod_zona=<%= params.cod_zona %>&mes=<%= params.mes %>&anio=<%= params.anio %>" target="_blank">
-        <button type="button">Descargar PDF</button>
-      </a>
-    </p>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Cod Cliente</th>
-          <th>Cliente</th>
-          <th>Cod Prod</th>
-          <!-- Semana 1 tiene 5 columnas -->
-          <th class="week1" colspan="5">Semana 1</th>
-          <!-- Semanas 2 a 4 tienen 4 columnas cada una -->
-          <% for (let w = 2; w <= 4; w++) { %>
-            <th class="week<%= w %>" colspan="4">Semana <%= w %></th>
-          <% } %>
-        </tr>
-        <tr>
-          <th></th>
-          <th></th>
-          <th></th>
-          <!-- Encabezado de semana 1 -->
-          <th class="week1">Saldo Init</th>
-          <th class="week1">Venta</th>
-          <th class="week1">Cob CD</th>
-          <th class="week1">Cob CC</th>
-          <th class="week1">Resultado</th>
-          <% for (let w = 2; w <= 4; w++) { %>
-            <th class="week<%= w %>">Venta</th>
-            <th class="week<%= w %>">Cob CD</th>
-            <th class="week<%= w %>">Cob CC</th>
-            <th class="week<%= w %>">Resultado</th>
-          <% } %>
-        </tr>
-      </thead>
-      <tbody>
-        <% data.forEach(row => { %>
-          <tr>
-            <td><%= row.cod_cliente %></td>
-            <td><%= row.nom_cliente %></td>
-            <td><%= row.cod_prod %></td>
-
-            <% const s1 = row.semanas[1] || {}; %>
-            <td class="week1"><%= (s1.saldo_inicial || 0).toFixed(0) %></td>
-            <td class="week1"><%= (s1.venta || 0).toFixed(0) %></td>
-            <td class="week1"><%= (s1.cobrado_ctdo || 0).toFixed(0) %></td>
-            <td class="week1"><%= (s1.cobrado_ccte || 0).toFixed(0) %></td>
-            <td class="week1"><%= (s1.resultado || 0).toFixed(0) %></td>
-
-            <% for (let w = 2; w <= 4; w++) { 
-                 const s = row.semanas[w] || {}; %>
-              <td class="week<%= w %>"><%= (s.venta || 0).toFixed(0) %></td>
-              <td class="week<%= w %>"><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
-              <td class="week<%= w %>"><%= (s.cobrado_ccte || 0).toFixed(0) %></td>
-              <td class="week<%= w %>"><%= (s.resultado || 0).toFixed(0) %></td>
-            <% } %>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+    <!-- Botón para generar el PDF -->
+    <button onclick="generarPDF()">Descargar PDF</button>
+    
+    <!-- Contenedor que se usará para generar el PDF -->
+    <div id="pdfContainer">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Cod Cliente</th>
+              <th>Cliente</th>
+              <th>Cod Prod</th>
+              <!-- Semana 1: 5 columnas -->
+              <th class="week1" colspan="5">Semana 1</th>
+              <!-- Semanas 2 a 4: 4 columnas cada una -->
+              <% for (let w = 2; w <= 4; w++) { %>
+                <th class="week<%= w %>" colspan="4">Semana <%= w %></th>
+              <% } %>
+            </tr>
+            <tr>
+              <th></th>
+              <th></th>
+              <th></th>
+              <!-- Encabezados para Semana 1 -->
+              <th class="week1">Saldo Init</th>
+              <th class="week1">Venta</th>
+              <th class="week1">Cob CD</th>
+              <th class="week1">Cob CC</th>
+              <th class="week1">Resultado</th>
+              <% for (let w = 2; w <= 4; w++) { %>
+                <th class="week<%= w %>">Venta</th>
+                <th class="week<%= w %>">Cob CD</th>
+                <th class="week<%= w %>">Cob CC</th>
+                <th class="week<%= w %>">Resultado</th>
+              <% } %>
+            </tr>
+          </thead>
+          <tbody>
+            <% data.forEach(row => { %>
+              <tr>
+                <td><%= row.cod_cliente %></td>
+                <td><%= row.nom_cliente %></td>
+                <td><%= row.cod_prod %></td>
+                <% const s1 = row.semanas[1] || {}; %>
+                <td class="week1"><%= (s1.saldo_inicial || 0).toFixed(0) %></td>
+                <td class="week1"><%= (s1.venta || 0).toFixed(0) %></td>
+                <td class="week1"><%= (s1.cobrado_ctdo || 0).toFixed(0) %></td>
+                <td class="week1"><%= (s1.cobrado_ccte || 0).toFixed(0) %></td>
+                <td class="week1"><%= (s1.resultado || 0).toFixed(0) %></td>
+                <% for (let w = 2; w <= 4; w++) { 
+                     const s = row.semanas[w] || {}; %>
+                  <td class="week<%= w %>"><%= (s.venta || 0).toFixed(0) %></td>
+                  <td class="week<%= w %>"><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
+                  <td class="week<%= w %>"><%= (s.cobrado_ccte || 0).toFixed(0) %></td>
+                  <td class="week<%= w %>"><%= (s.resultado || 0).toFixed(0) %></td>
+                <% } %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
   <% } else if (params.cod_rep) { %>
     <p>No hay datos para ese repartidor/zona/mes/año.</p>
   <% } %>
+
+  <!-- Incluir jsPDF y html2canvas desde CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    function generarPDF() {
+      // Clonar el contenedor que incluye la tabla
+      const contenedorOriginal = document.getElementById('pdfContainer');
+      const clon = contenedorOriginal.cloneNode(true);
+
+      // Quitar restricciones de altura y posición sticky
+      clon.style.maxHeight = "none";
+      clon.style.overflow = "visible";
+      clon.querySelectorAll('.table-container').forEach(el => {
+        el.style.maxHeight = "none";
+        el.style.overflow = "visible";
+      });
+      clon.querySelectorAll("thead th").forEach(el => {
+        el.style.position = "static";
+      });
+
+      // Crear un contenedor temporal fuera de la vista
+      const contenedorTemporal = document.createElement('div');
+      contenedorTemporal.style.position = 'absolute';
+      contenedorTemporal.style.top = '-10000px';
+      contenedorTemporal.appendChild(clon);
+      document.body.appendChild(contenedorTemporal);
+
+      // Usar html2canvas para capturar la imagen del clon
+      html2canvas(clon, { useCORS: true, scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('l', 'mm', 'a4'); // 'l' para landscape
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgHeight = canvas.height * pageWidth / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        // Agregar páginas si es necesario
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save('hoja_ruta.pdf');
+        document.body.removeChild(contenedorTemporal);
+      });
+    }
+  </script>
 </body>
 </html>
