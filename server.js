@@ -315,32 +315,38 @@ app.get('/hojaruta/pdf', async (req, res) => {
         semanas: {1:{},2:{},3:{},4:{}}
       };
       pivot[key].semanas[r.semana] = {
-        saldo_inicial: +r.saldo_inicial||0,
-        venta: +r.venta||0,
-        cobrado_ctdo: +r.cobrado_ctdo||0,
-        cobrado_ccte: +r.cobrado_ccte||0,
+        saldo_inicial: +r.saldo_inicial || 0,
+        venta: +r.venta || 0,
+        cobrado_ctdo: +r.cobrado_ctdo || 0,
+        cobrado_ccte: +r.cobrado_ccte || 0,
         resultado: 0
       };
     });
     Object.values(pivot).forEach(client => {
       let acc = client.semanas[1].saldo_inicial || 0;
-      for (let w=1; w<=4; w++) {
+      for (let w = 1; w <= 4; w++){
         const s = client.semanas[w] || { venta:0, cobrado_ctdo:0, cobrado_ccte:0 };
         s.resultado = acc + s.venta - s.cobrado_ctdo - s.cobrado_ccte;
         acc = s.resultado;
       }
     });
 
-    const html = await new Promise((resolve, reject) =>
-      res.render('hojaruta', { title:'Hoja Ruta', data:Object.values(pivot), params:{cod_rep,cod_zona,mes,anio} }, (err, html) =>
-        err ? reject(err) : resolve(html)
-      )
-    );
+    const html = await new Promise((resolve, reject) => {
+      res.render('hojaruta', { title:'Hoja Ruta', data:Object.values(pivot), params:{cod_rep, cod_zona, mes, anio} }, (err, html) => {
+        if (err) return reject(err);
+        resolve(html);
+      });
+    });
 
     const pdfOptions = {
       format: 'A4',
       orientation: 'landscape',
-      border: '10mm',
+      border: {
+        top: "10mm",
+        right: "10mm",
+        bottom: "10mm",
+        left: "10mm"
+      },
       paginationOffset: 0,
       header: { height: '10mm' },
       footer: { height: '10mm' }
@@ -348,11 +354,11 @@ app.get('/hojaruta/pdf', async (req, res) => {
 
     pdf.create(html, pdfOptions).toStream((err, stream) => {
       if (err) return res.status(500).send('Error generando PDF');
-      res.setHeader('Content-Type','application/pdf');
-      res.setHeader('Content-Disposition','attachment; filename=hoja_ruta.pdf');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename=hoja_ruta.pdf');
       stream.pipe(res);
     });
-  } catch(err) {
+  } catch (err) {
     console.error(err);
     res.status(500).send('Error en el servidor');
   }
