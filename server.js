@@ -341,14 +341,14 @@ app.get('/hojaruta/pdf', async (req, res) => {
       format: 'A4',
       orientation: 'portrait',
       border: {
-        top: "-15mm",
-        right: "-15mm",
-        bottom: "-15mm",
-        left: "-15mm"
+        top: "25mm",
+        right: "25mm",
+        bottom: "25mm",
+        left: "25mm"
       },
       paginationOffset: 0,
-      header: { height: '-15mm' },
-      footer: { height: '-15mm' }
+      header: { height: '25mm' },
+      footer: { height: '25mm' }
     };
 
     pdf.create(html, pdfOptions).toStream((err, stream) => {
