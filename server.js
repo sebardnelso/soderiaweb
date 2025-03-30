@@ -257,10 +257,14 @@ app.get('/hojaruta', async (req, res) => {
 
     // Calcular el resultado acumulado para cada cliente/producto en cada semana
     Object.values(pivot).forEach(client => {
+      // Usar el saldo inicial de la semana 1 (o 0 si no está definido)
       let acc = client.semanas[1].saldo_inicial || 0;
       for (let w = 1; w <= 4; w++) {
-        const s = client.semanas[w] || { venta: 0, cobrado_ctdo: 0, cobrado_ccte: 0 };
+        // Fusionar con valores predeterminados para garantizar que falte 0
+        const s = Object.assign({ venta: 0, cobrado_ctdo: 0, cobrado_ccte: 0 }, client.semanas[w]);
         s.resultado = acc + s.venta - s.cobrado_ctdo - s.cobrado_ccte;
+        // Actualizamos la semana en el pivot
+        client.semanas[w] = s;
         acc = s.resultado;
       }
     });
@@ -275,7 +279,6 @@ app.get('/hojaruta', async (req, res) => {
     res.status(500).send('Error en el servidor');
   }
 });
-
 
 
 // Ruta raíz (redirige a login)
