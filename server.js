@@ -341,10 +341,10 @@ app.get('/hojaruta/pdf', async (req, res) => {
       format: 'A4',
       orientation: 'landscape',
       border: {
-        top: "1mm",
-        right: "1mm",
-        bottom: "1mm",
-        left: "1mm"
+        top: "-5mm",
+        right: "-5mm",
+        bottom: "-5mm",
+        left: "-5mm"
       },
       paginationOffset: 0,
       header: { height: '1mm' },
