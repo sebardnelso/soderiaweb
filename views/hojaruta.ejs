@@ -4,20 +4,54 @@
   <meta charset="UTF-8">
   <title><%= title %></title>
   <style>
-    table { page-break-inside: auto; width:100%; border-collapse: collapse; }
-    tr    { page-break-inside: avoid; page-break-after: auto; }
-    thead { display: table-header-group; }
-    tfoot { display: table-footer-group; }
+    /* Estilos generales para la tabla */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      page-break-inside: auto;
+    }
+    tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+    thead {
+      display: table-header-group;
+      position: sticky; /* Para que el encabezado se mantenga en la parte superior al hacer scroll en el navegador */
+      top: 0;
+      background-color: #fff;
+      z-index: 2;
+    }
+    tfoot {
+      display: table-footer-group;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #000;
+      text-align: center;
+    }
+    /* Clases para diferenciar semanas */
+    .week1 { background-color: #f2d7d5; } /* Rosa suave */
+    .week2 { background-color: #d5f5e3; } /* Verde claro */
+    .week3 { background-color: #d6eaf8; } /* Azul claro */
+    .week4 { background-color: #fcf3cf; } /* Amarillo suave */
   </style>
 </head>
 <body>
   <h1>Hoja Ruta</h1>
 
   <form method="get" action="/hojaruta">
-    <label>Rep:<input name="cod_rep" value="<%= params.cod_rep || '' %>"></label>
-    <label>Zona:<input name="cod_zona" value="<%= params.cod_zona || '' %>"></label>
-    <label>Mes:<input name="mes" type="number" min="1" max="12" value="<%= params.mes || '' %>"></label>
-    <label>Año:<input name="anio" type="number" min="2000" value="<%= params.anio || '' %>"></label>
+    <label>Rep:
+      <input name="cod_rep" value="<%= params.cod_rep || '' %>">
+    </label>
+    <label>Zona:
+      <input name="cod_zona" value="<%= params.cod_zona || '' %>">
+    </label>
+    <label>Mes:
+      <input name="mes" type="number" min="1" max="12" value="<%= params.mes || '' %>">
+    </label>
+    <label>Año:
+      <input name="anio" type="number" min="2000" value="<%= params.anio || '' %>">
+    </label>
     <button>Filtrar</button>
   </form>
 
@@ -28,31 +62,34 @@
       </a>
     </p>
 
-    <table border="1" cellspacing="0" cellpadding="8">
+    <table>
       <thead>
         <tr>
           <th>Cod Cliente</th>
           <th>Cliente</th>
           <th>Cod Prod</th>
-          <th colspan="5">Semana 1</th>
+          <!-- Semana 1 tiene 5 columnas -->
+          <th class="week1" colspan="5">Semana 1</th>
+          <!-- Semanas 2 a 4 tienen 4 columnas cada una -->
           <% for (let w = 2; w <= 4; w++) { %>
-            <th colspan="4">Semana <%= w %></th>
+            <th class="week<%= w %>" colspan="4">Semana <%= w %></th>
           <% } %>
         </tr>
         <tr>
           <th></th>
           <th></th>
           <th></th>
-          <th>Saldo Init</th>
-          <th>Venta</th>
-          <th>Cob CD</th>
-          <th>Cob CC</th>
-          <th>Resultado</th>
+          <!-- Encabezado de semana 1 -->
+          <th class="week1">Saldo Init</th>
+          <th class="week1">Venta</th>
+          <th class="week1">Cob CD</th>
+          <th class="week1">Cob CC</th>
+          <th class="week1">Resultado</th>
           <% for (let w = 2; w <= 4; w++) { %>
-            <th>Venta</th>
-            <th>Cob CD</th>
-            <th>Cob CC</th>
-            <th>Resultado</th>
+            <th class="week<%= w %>">Venta</th>
+            <th class="week<%= w %>">Cob CD</th>
+            <th class="week<%= w %>">Cob CC</th>
+            <th class="week<%= w %>">Resultado</th>
           <% } %>
         </tr>
       </thead>
@@ -64,18 +101,18 @@
             <td><%= row.cod_prod %></td>
 
             <% const s1 = row.semanas[1] || {}; %>
-            <td><%= (s1.saldo_inicial || 0).toFixed(0) %></td>
-            <td><%= (s1.venta || 0).toFixed(0) %></td>
-            <td><%= (s1.cobrado_ctdo || 0).toFixed(0) %></td>
-            <td><%= (s1.cobrado_ccte || 0).toFixed(0) %></td>
-            <td><%= (s1.resultado || 0).toFixed(0) %></td>
+            <td class="week1"><%= (s1.saldo_inicial || 0).toFixed(0) %></td>
+            <td class="week1"><%= (s1.venta || 0).toFixed(0) %></td>
+            <td class="week1"><%= (s1.cobrado_ctdo || 0).toFixed(0) %></td>
+            <td class="week1"><%= (s1.cobrado_ccte || 0).toFixed(0) %></td>
+            <td class="week1"><%= (s1.resultado || 0).toFixed(0) %></td>
 
             <% for (let w = 2; w <= 4; w++) { 
                  const s = row.semanas[w] || {}; %>
-              <td><%= (s.venta || 0).toFixed(0) %></td>
-              <td><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
-              <td><%= (s.cobrado_ccte || 0).toFixed(0) %></td>
-              <td><%= (s.resultado || 0).toFixed(0) %></td>
+              <td class="week<%= w %>"><%= (s.venta || 0).toFixed(0) %></td>
+              <td class="week<%= w %>"><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
+              <td class="week<%= w %>"><%= (s.cobrado_ccte || 0).toFixed(0) %></td>
+              <td class="week<%= w %>"><%= (s.resultado || 0).toFixed(0) %></td>
             <% } %>
           </tr>
         <% }) %>
