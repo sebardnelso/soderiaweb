@@ -339,7 +339,7 @@ app.get('/hojaruta/pdf', async (req, res) => {
 
     const pdfOptions = {
       format: 'A4',
-      orientation: 'landscape',
+      orientation: 'portrait',
       border: {
         top: "-15mm",
         right: "-15mm",
