@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title><%= title %></title>
-  <meta charset="UTF-8">
-  <title><%= title %></title>
   <style>
     table { page-break-inside: auto; width:100%; border-collapse: collapse; }
     tr    { page-break-inside: avoid; page-break-after: auto; }
@@ -16,36 +14,45 @@
   <h1>Hoja Ruta</h1>
 
   <form method="get" action="/hojaruta">
-    <label>Rep:<input name="cod_rep" value="<%= params.cod_rep||'' %>"></label>
-    <label>Zona:<input name="cod_zona" value="<%= params.cod_zona||'' %>"></label>
-    <label>Mes:<input name="mes" type="number" min="1" max="12" value="<%= params.mes||'' %>"></label>
-    <label>Año:<input name="anio" type="number" min="2000" value="<%= params.anio||'' %>"></label>
+    <label>Rep:<input name="cod_rep" value="<%= params.cod_rep || '' %>"></label>
+    <label>Zona:<input name="cod_zona" value="<%= params.cod_zona || '' %>"></label>
+    <label>Mes:<input name="mes" type="number" min="1" max="12" value="<%= params.mes || '' %>"></label>
+    <label>Año:<input name="anio" type="number" min="2000" value="<%= params.anio || '' %>"></label>
     <button>Filtrar</button>
   </form>
 
-  <% if(data.length) { %>
+  <% if (data.length) { %>
     <p>
       <a href="/hojaruta/pdf?cod_rep=<%= params.cod_rep %>&cod_zona=<%= params.cod_zona %>&mes=<%= params.mes %>&anio=<%= params.anio %>" target="_blank">
         <button type="button">Descargar PDF</button>
       </a>
     </p>
 
-    <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse;">
+    <table border="1" cellspacing="0" cellpadding="8">
       <thead>
         <tr>
           <th>Cod Cliente</th>
           <th>Cliente</th>
           <th>Cod Prod</th>
           <th colspan="5">Semana 1</th>
-          <% for(let w=2; w<=4; w++){ %>
+          <% for (let w = 2; w <= 4; w++) { %>
             <th colspan="4">Semana <%= w %></th>
           <% } %>
         </tr>
         <tr>
-          <th></th><th></th><th></th>
-          <th>Saldo Init</th><th>Venta</th><th>Cob CD</th><th>Cob CC</th><th>Resultado</th>
-          <% for(let w=2; w<=4; w++){ %>
-            <th>Venta</th><th>Cob CD</th><th>Cob CC</th><th>Resultado</th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th>Saldo Init</th>
+          <th>Venta</th>
+          <th>Cob CD</th>
+          <th>Cob CC</th>
+          <th>Resultado</th>
+          <% for (let w = 2; w <= 4; w++) { %>
+            <th>Venta</th>
+            <th>Cob CD</th>
+            <th>Cob CC</th>
+            <th>Resultado</th>
           <% } %>
         </tr>
       </thead>
@@ -57,25 +64,25 @@
             <td><%= row.cod_prod %></td>
 
             <% const s1 = row.semanas[1] || {}; %>
-            <td><%= (s1.saldo_inicial||0).toFixed(0) %></td>
-            <td><%= (s1.venta||0).toFixed(0) %></td>
-            <td><%= (s1.cobrado_ctdo||0).toFixed(0) %></td>
-            <td><%= (s1.cobrado_ccte||0).toFixed(0) %></td>
-            <td><%= (s1.resultado||0).toFixed(0) %></td>
+            <td><%= (s1.saldo_inicial || 0).toFixed(0) %></td>
+            <td><%= (s1.venta || 0).toFixed(0) %></td>
+            <td><%= (s1.cobrado_ctdo || 0).toFixed(0) %></td>
+            <td><%= (s1.cobrado_ccte || 0).toFixed(0) %></td>
+            <td><%= (s1.resultado || 0).toFixed(0) %></td>
 
-            <% for(let w=2; w<=4; w++){ 
+            <% for (let w = 2; w <= 4; w++) { 
                  const s = row.semanas[w] || {}; %>
-              <td><%= (s.venta||0).toFixed(0) %></td>
-              <td><%= (s.cobrado_ctdo||0).toFixed(0) %></td>
-              <td><%= (s.cobrado_ccte||0).toFixed(0) %></td>
-              <td><%= (s.resultado||0).toFixed(0) %></td>
+              <td><%= (s.venta || 0).toFixed(0) %></td>
+              <td><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
+              <td><%= (s.cobrado_ccte || 0).toFixed(0) %></td>
+              <td><%= (s.resultado || 0).toFixed(0) %></td>
             <% } %>
           </tr>
         <% }) %>
       </tbody>
     </table>
-  <% } else if(params.cod_rep) { %>
+  <% } else if (params.cod_rep) { %>
     <p>No hay datos para ese repartidor/zona/mes/año.</p>
   <% } %>
 </body>
-</html> 
+</html>
