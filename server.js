@@ -201,8 +201,6 @@ app.post('/clientenuevo/eliminar/:id', async (req, res) => {
 });
 
 
-
-// Ruta GET para Hoja Ruta
 app.get('/hojaruta', async (req, res) => {
   try {
     const { cod_rep, cod_zona, mes, anio } = req.query;
@@ -219,7 +217,8 @@ app.get('/hojaruta', async (req, res) => {
         hh.saldi AS saldo_inicial,
         SUM(hc.venta) AS venta,
         SUM(hc.cobrado_ctdo) AS cobrado_ctdo,
-        SUM(hc.cobrado_ccte) AS cobrado_ccte
+        SUM(hc.cobrado_ccte) AS cobrado_ccte,
+        hh.secuencia
       FROM soda_hoja_header hh
       LEFT JOIN soda_hoja_completa hc
         ON hh.cod_rep = hc.cod_rep
@@ -228,8 +227,8 @@ app.get('/hojaruta', async (req, res) => {
        AND MONTH(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
        AND YEAR(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
       WHERE hh.cod_rep = ? AND hh.cod_zona = ?
-      GROUP BY hh.cod_cliente, hh.nom_cliente, hc.cod_prod, semana, hh.saldi
-      ORDER BY hh.nom_cliente, hc.cod_prod, semana;
+      GROUP BY hh.cod_cliente, hh.nom_cliente, hc.cod_prod, semana, hh.saldi, hh.secuencia
+      ORDER BY hh.secuencia ASC, hh.nom_cliente, hc.cod_prod, semana;
     `;
 
     const [rows] = await req.db.query(sql, [mes, anio, cod_rep, cod_zona]);
