@@ -258,6 +258,7 @@
     
     <!-- Botones para descargar el PDF y volver al menú -->
     <button onclick="generarPDF()">Descargar PDF</button>
+    <button type="button" id="btnVerErrores" onclick="mostrarErrores()">Ver Errores</button>
     <button onclick="location.href='/menu'">Volver</button>
   <% } else if (resultados) { %>
     <p>No se encontraron resultados para los parámetros proporcionados.</p>
@@ -318,7 +319,28 @@
         document.body.removeChild(contenedorTemporal);
       });
     }
+   function mostrarErrores() {
+  // 1) Recolectar todas las filas
+  const filas = Array.from(document.querySelectorAll('#miTabla tbody tr'));
+  const cuenta = {};
+
+  // 2) Contar ocurrencias de la combinación cod_cliente–cod_prod
+  filas.forEach(fila => {
+    const codCliente = fila.cells[0].innerText.trim();
+    const codProd    = fila.cells[2].innerText.trim();  // índice 2 = tercera columna
+    const clave      = `${codCliente}-${codProd}`;
+    cuenta[clave] = (cuenta[clave] || 0) + 1;
+  });
+
+  // 3) Mostrar sólo las filas cuya clave aparece >1 vez
+  filas.forEach(fila => {
+    const codCliente = fila.cells[0].innerText.trim();
+    const codProd    = fila.cells[2].innerText.trim();
+    const clave      = `${codCliente}-${codProd}`;
+    fila.style.display = (cuenta[clave] > 1 ? '' : 'none');
+  });
+}
+
   </script>
 </body>
 </html>
-s
