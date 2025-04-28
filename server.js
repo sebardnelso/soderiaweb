@@ -214,26 +214,39 @@ app.get('/hojaruta', async (req, res) => {
         hh.nom_cliente,
         hc.cod_prod,
         FLOOR((DAY(STR_TO_DATE(hc.fecha,'%Y-%m-%d'))-1)/7)+1 AS semana,
-        hh.saldi AS saldo_inicial,
-        SUM(hc.venta) AS venta,
+        hh.saldiA3,
+        hh.saldiA4,
+        SUM(hc.venta)       AS venta,
         SUM(hc.cobrado_ctdo) AS cobrado_ctdo,
         SUM(hc.cobrado_ccte) AS cobrado_ccte,
         hh.secuencia
       FROM soda_hoja_header hh
       LEFT JOIN soda_hoja_completa hc
-        ON hh.cod_rep = hc.cod_rep
-       AND hh.cod_zona = hc.cod_zona
+        ON hh.cod_rep      = hc.cod_rep
+       AND hh.cod_zona    = hc.cod_zona
        AND hh.cod_cliente = hc.cod_cliente
        AND MONTH(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
-       AND YEAR(STR_TO_DATE(hc.fecha,'%Y-%m-%d')) = ?
-      WHERE hh.cod_rep = ? AND hh.cod_zona = ?
-      GROUP BY hh.cod_cliente, hh.nom_cliente, hc.cod_prod, semana, hh.saldi, hh.secuencia
-      ORDER BY hh.secuencia ASC, hh.nom_cliente, hc.cod_prod, semana;
+       AND YEAR(STR_TO_DATE(hc.fecha,'%Y-%m-%d'))  = ?
+      WHERE hh.cod_rep   = ?
+        AND hh.cod_zona = ?
+      GROUP BY
+        hh.cod_cliente,
+        hh.nom_cliente,
+        hc.cod_prod,
+        semana,
+        hh.saldiA3,
+        hh.saldiA4,
+        hh.secuencia
+      ORDER BY
+        hh.secuencia ASC,
+        hh.nom_cliente,
+        hc.cod_prod,
+        semana;
     `;
 
     const [rows] = await req.db.query(sql, [mes, anio, cod_rep, cod_zona]);
 
-    // Construir la estructura "pivot" para agrupar por cliente y producto
+    // Pivot: agrupar por cliente+producto
     const pivot = {};
     rows.forEach(r => {
       const key = `${r.cod_cliente}-${r.cod_prod}`;
@@ -241,29 +254,32 @@ app.get('/hojaruta', async (req, res) => {
         pivot[key] = {
           cod_cliente: r.cod_cliente,
           nom_cliente: r.nom_cliente,
-          cod_prod: r.cod_prod,
-          // Se definen 4 semanas inicialmente
-          semanas: { 1: {}, 2: {}, 3: {}, 4: {} }
+          cod_prod:    r.cod_prod,
+          semanas:     { 1: {}, 2: {}, 3: {}, 4: {} }
         };
       }
+      // escoge saldo inicial según producto
+      const saldoInicial = r.cod_prod === 'A3'
+        ? r.saldiA3
+        : r.cod_prod === 'A4'
+          ? r.saldiA4
+          : 0;
+
       pivot[key].semanas[r.semana] = {
-        saldo_inicial: Number(r.saldo_inicial) || 0,
-        venta: Number(r.venta) || 0,
-        cobrado_ctdo: Number(r.cobrado_ctdo) || 0,
-        cobrado_ccte: Number(r.cobrado_ccte) || 0,
-        resultado: 0
+        saldo_inicial: Number(saldoInicial)   || 0,
+        venta:         Number(r.venta)        || 0,
+        cobrado_ctdo:  Number(r.cobrado_ctdo) || 0,
+        cobrado_ccte:  Number(r.cobrado_ccte) || 0,
+        resultado:     0
       };
     });
 
-    // Calcular el resultado acumulado para cada cliente/producto en cada semana
+    // Calcular resultado acumulado por semana
     Object.values(pivot).forEach(client => {
-      // Usar el saldo inicial de la semana 1 (o 0 si no está definido)
       let acc = client.semanas[1].saldo_inicial || 0;
       for (let w = 1; w <= 4; w++) {
-        // Fusionar con valores predeterminados para garantizar que falte 0
-        const s = Object.assign({ venta: 0, cobrado_ctdo: 0, cobrado_ccte: 0 }, client.semanas[w]);
+        const s = client.semanas[w];
         s.resultado = acc + s.venta - s.cobrado_ctdo - s.cobrado_ccte;
-        // Actualizamos la semana en el pivot
         client.semanas[w] = s;
         acc = s.resultado;
       }
@@ -271,14 +287,15 @@ app.get('/hojaruta', async (req, res) => {
 
     res.render('hojaruta', {
       title: 'Hoja Ruta',
-      data: Object.values(pivot),
-      params: { cod_rep, cod_zona, mes, anio }
+      data:  Object.values(pivot),
+      params:{ cod_rep, cod_zona, mes, anio }
     });
   } catch (err) {
     console.error('Error en /hojaruta:', err);
     res.status(500).send('Error en el servidor');
   }
 });
+
 
 
 // Ruta raíz (redirige a login)
