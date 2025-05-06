@@ -113,7 +113,6 @@ app.get('/ventaxdia', (req, res) => {
 });
 
 
-// RUTA POST: el procesamiento real
 app.post('/ventaxdia', async (req, res) => {
   try {
     const { cod_rep, fecha, cod_zona } = req.body;
@@ -122,7 +121,7 @@ app.post('/ventaxdia', async (req, res) => {
     }
 
     // ————————————————————————————————————————————
-    // 1) Traer cliente+prod con saldo inicial o agregado
+    // 1) Traer cliente+prod con saldo inicial o agregado, eliminando duplicados en hoja_completa
     const [results] = await req.db.query(
       `SELECT
          hl.cod_cliente,
@@ -152,23 +151,36 @@ app.post('/ventaxdia', async (req, res) => {
             FROM soda_hoja_header
             WHERE cod_rep=? AND cod_zona=?
             GROUP BY cod_cliente
-          ) hm ON hm.cod_cliente=sh2.cod_cliente AND hm.secuencia=sh2.secuencia
-        ) sh ON sh.cod_cliente=hl.cod_cliente
+          ) hm 
+            ON hm.cod_cliente=sh2.cod_cliente 
+           AND hm.secuencia  =sh2.secuencia
+        ) sh 
+          ON sh.cod_cliente=hl.cod_cliente
        LEFT JOIN
-        ( SELECT cod_cliente, cod_prod,
-                 SUM(debe)        AS debe_total,
-                 SUM(venta)       AS venta,
-                 SUM(cobrado_ctdo)AS cobrado_ctdo,
-                 SUM(cobrado_ccte)AS cobrado_ccte,
-                 SUM(bidones_bajados) AS bidones,
-                 GROUP_CONCAT(DISTINCT motivo) AS motivo
-          FROM soda_hoja_completa
-          WHERE cod_rep=? AND fecha=? AND cod_zona=?
+        (
+          -- primero quitamos duplicados exactos
+          SELECT 
+            cod_cliente, cod_prod,
+            SUM(debe)        AS debe_total,
+            SUM(venta)       AS venta,
+            SUM(cobrado_ctdo)AS cobrado_ctdo,
+            SUM(cobrado_ccte)AS cobrado_ccte,
+            SUM(bidones_bajados) AS bidones,
+            GROUP_CONCAT(DISTINCT motivo) AS motivo
+          FROM (
+            SELECT DISTINCT
+              cod_rep, fecha, cod_zona,
+              cod_cliente, cod_prod,
+              debe, venta, cobrado_ctdo, cobrado_ccte, bidones_bajados, motivo
+            FROM soda_hoja_completa
+            WHERE cod_rep=? AND fecha=? AND cod_zona=?
+          ) AS distinct_rows
           GROUP BY cod_cliente, cod_prod
         ) hc_sum
-        ON hc_sum.cod_cliente=hl.cod_cliente
-       AND hc_sum.cod_prod   =hl.cod_prod
-       ORDER BY sh.secuencia ASC`,
+          ON hc_sum.cod_cliente=hl.cod_cliente
+         AND hc_sum.cod_prod   =hl.cod_prod
+       ORDER BY sh.secuencia ASC
+      `,
       [cod_rep, cod_zona, cod_rep, cod_zona, cod_rep, fecha, cod_zona]
     );
 
@@ -193,7 +205,7 @@ app.post('/ventaxdia', async (req, res) => {
     });
 
     // ————————————————————————————————————————————
-    // 4) Movimientos de camión (soda_cardes) → resumenMovs
+    // 4) Movimientos de camión → resumenMovs
     const [movsRaw] = await req.db.query(
       `SELECT movimiento, cod_prod, cantidad
        FROM soda_cardes
@@ -206,8 +218,9 @@ app.post('/ventaxdia', async (req, res) => {
         detalleMovs[r.movimiento][r.cod_prod].push(+r.cantidad);
       }
     });
-    const resumenMovs = { carga:{}, vacio:{}, lleno:{} };
+    const resumenMovs = {};
     ['carga','vacio','lleno'].forEach(mov => {
+      resumenMovs[mov] = {};
       ['A3','A4'].forEach(prod => {
         const arr = detalleMovs[mov][prod];
         resumenMovs[mov][prod] = { values: arr, sum: arr.reduce((a,b)=>a+b,0) };
@@ -215,7 +228,7 @@ app.post('/ventaxdia', async (req, res) => {
     });
 
     // ————————————————————————————————————————————
-    // 5) Préstamo / recupero
+    // 5) Préstamo/recupero
     const notificaciones = {};
     ['A3','A4'].forEach(prod => {
       const c = resumenMovs.carga[prod].sum;
@@ -228,7 +241,7 @@ app.post('/ventaxdia', async (req, res) => {
     });
 
     // ————————————————————————————————————————————
-    // 6) Rendiciones cobradas
+    // 6) Rendiciones cobradas + total
     const [rendiciones] = await req.db.query(
       `SELECT rub.descripcion, r.importe
        FROM soda_rendiciones r
@@ -264,6 +277,7 @@ app.post('/ventaxdia', async (req, res) => {
     if (!res.headersSent) res.status(500).send('Error en el servidor.');
   }
 });
+
 
 
 
