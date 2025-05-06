@@ -215,6 +215,7 @@ app.post('/ventaxdia', async (req, res) => {
         ON r.cod_gasto = rub.cod
       WHERE r.cod_rep = ? AND r.fecha = ?
     `, [cod_rep, fecha]);
+    
     // 7.1) Calcular total de rendiciones
       const totalRendiciones = rendiciones
       .reduce((sum, r) => sum + (parseFloat(r.importe) || 0), 0);
