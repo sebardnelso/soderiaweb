@@ -83,6 +83,37 @@ app.get('/ventaxdia', (req, res) => {
 });
 
 // Ruta POST para ventaxdia con async/await
+// RUTA GET: muestra la pantalla en blanco al entrar
+app.get('/ventaxdia', (req, res) => {
+  // versión “vacía” de resumenMovs para que el EJS nunca choque
+  const emptyGroups = { A3: [], A4: [] };
+  const resumenVacio = {
+    carga:  { A3: [], A4: [] },
+    vacio:  { A3: [], A4: [] },
+    lleno:  { A3: [], A4: [] }
+  };
+  // Lo mismo para el resumen final (sum cero)
+  const resumenSum = { carga: { A3:0, A4:0 }, vacio: { A3:0, A4:0 }, lleno: { A3:0, A4:0 } };
+  // Y notificaciones neutras
+  const notiVacia = { A3:{ tipo:'ok', diff:0 }, A4:{ tipo:'ok', diff:0 } };
+
+  res.render('ventaxdia', {
+    title: 'Venta por Día',
+    resultados: null,
+    parametros: {},
+    // Para que EJS encuentre siempre el objeto
+    detalleMovs: resumenVacio,
+    resumenMovs: resumenSum,
+    notificaciones: notiVacia,
+    // Totales y precios pueden quedar a 0
+    totales: { debe:0, venta:0, cobrado_ctdo:0, cobrado_ccte:0, bidones_bajados:0 },
+    priceA3: 0,
+    priceA4: 0
+  });
+});
+
+
+// RUTA POST: el procesamiento real
 app.post('/ventaxdia', async (req, res) => {
   try {
     const { cod_rep, fecha, cod_zona } = req.body;
@@ -90,87 +121,130 @@ app.post('/ventaxdia', async (req, res) => {
       return res.status(400).send('Todos los campos son requeridos.');
     }
 
-    const query = `
+    // 1) Consulta principal
+    const [results] = await req.db.query(`
       SELECT 
         hc.cod_cliente,
         sh.nom_cliente,
         hc.cod_prod,
-        SUM(hl.debe) AS debe_total,
+        SUM(hc.debe)       AS debe_total,
         hc.venta,
         hc.cobrado_ctdo,
         hc.cobrado_ccte,
         hc.bidones_bajados,
         hc.motivo,
         hh_max.secuencia
-      FROM 
-        soda_hoja_completa hc
-      INNER JOIN 
-        soda_hoja_linea hl ON hc.cod_cliente = hl.cod_cliente
-      INNER JOIN 
-        (
-          SELECT cod_cliente, MAX(secuencia) AS secuencia
-          FROM soda_hoja_header
-          GROUP BY cod_cliente
-        ) hh_max ON hc.cod_cliente = hh_max.cod_cliente
-      INNER JOIN
-        soda_hoja_header sh ON sh.cod_cliente = hc.cod_cliente AND sh.secuencia = hh_max.secuencia
+      FROM soda_hoja_completa hc
+      INNER JOIN (
+        SELECT cod_cliente, MAX(secuencia) AS secuencia
+        FROM soda_hoja_header
+        GROUP BY cod_cliente
+      ) hh_max 
+        ON hc.cod_cliente = hh_max.cod_cliente
+      INNER JOIN soda_hoja_header sh 
+        ON sh.cod_cliente = hc.cod_cliente 
+       AND sh.secuencia  = hh_max.secuencia
       WHERE 
-        hc.cod_rep = ? AND 
-        hc.fecha = ? AND 
-        hc.cod_zona = ?
+        hc.cod_rep   = ? 
+        AND hc.fecha    = ? 
+        AND hc.cod_zona = ?
       GROUP BY 
-        hc.cod_cliente, sh.nom_cliente, hc.cod_prod, hc.venta, hc.cobrado_ctdo, hc.cobrado_ccte, hc.bidones_bajados, hc.motivo, hh_max.secuencia
-      ORDER BY 
-        hh_max.secuencia ASC
-    `;
+        hc.cod_cliente, sh.nom_cliente, hc.cod_prod,
+        hc.venta, hc.cobrado_ctdo, hc.cobrado_ccte,
+        hc.bidones_bajados, hc.motivo, hh_max.secuencia
+      ORDER BY hh_max.secuencia ASC
+    `, [cod_rep, fecha, cod_zona]);
 
-    const [results] = await req.db.query(query, [cod_rep, fecha, cod_zona]);
-
-    // Calcular totales generales (si es necesario para otros usos)
-    let totalVenta = 0;
-    let totalCobradoCDTO = 0;
-    let totalCobradoCCTE = 0;
-    let totalBidonesBajados = 0;
-
-    results.forEach(row => {
-      totalVenta += parseFloat(row.venta) || 0;
-      totalCobradoCDTO += parseFloat(row.cobrado_ctdo) || 0;
-      totalCobradoCCTE += parseFloat(row.cobrado_ccte) || 0;
-      totalBidonesBajados += parseFloat(row.bidones_bajados) || 0;
+    // 2) Totales generales (opcional en back)
+    let totalDebe = 0, totalVenta = 0, totalCobradoCDTO = 0, totalCobradoCCTE = 0, totalBidones = 0;
+    results.forEach(r => {
+      totalDebe        += parseFloat(r.debe_total)    || 0;
+      totalVenta       += parseFloat(r.venta)         || 0;
+      totalCobradoCDTO += parseFloat(r.cobrado_ctdo)  || 0;
+      totalCobradoCCTE += parseFloat(r.cobrado_ccte)  || 0;
+      totalBidones     += parseFloat(r.bidones_bajados) || 0;
     });
 
-    // Obtener los precios de la tabla soda_precio
+    // 3) Precios A3 / A4
     const [prices] = await req.db.query('SELECT cod_prod, precio FROM soda_precios');
     let priceA3 = 0, priceA4 = 0;
-    prices.forEach(item => {
-      if (item.cod_prod === 'A3') {
-        priceA3 = parseFloat(item.precio) || 0;
-      }
-      if (item.cod_prod === 'A4') {
-        priceA4 = parseFloat(item.precio) || 0;
+    prices.forEach(p => {
+      if (p.cod_prod === 'A3') priceA3 = parseFloat(p.precio) || 0;
+      if (p.cod_prod === 'A4') priceA4 = parseFloat(p.precio) || 0;
+    });
+
+    // 4) Traer cada fila de soda_cardes (sin agrupar)
+    const [movsRaw] = await req.db.query(`
+      SELECT movimiento, cod_prod, cantidad
+      FROM soda_cardes
+      WHERE cod_rep = ? AND fecha = ? AND cod_zona = ?
+    `, [cod_rep, fecha, cod_zona]);
+
+    // 5) Construir detalleMovs: arrays de cantidades
+    const detalleMovs = {
+      carga: { A3: [], A4: [] },
+      vacio: { A3: [], A4: [] },
+      lleno: { A3: [], A4: [] }
+    };
+    movsRaw.forEach(r => {
+      if (detalleMovs[r.movimiento] && detalleMovs[r.movimiento][r.cod_prod] !== undefined) {
+        detalleMovs[r.movimiento][r.cod_prod].push(parseFloat(r.cantidad));
       }
     });
 
-    // Renderizamos la vista pasando los resultados, parámetros, totales y precios
+    // 6) Armar resumenMovs con values + sum
+    const resumenMovs = { carga:{}, vacio:{}, lleno:{} };
+    Object.keys(detalleMovs).forEach(mov => {
+      ['A3','A4'].forEach(prod => {
+        const arr = detalleMovs[mov][prod];
+        const sum = arr.reduce((a,b) => a + b, 0);
+        resumenMovs[mov][prod] = { values: arr, sum };
+      });
+    });
+
+    // 7) Calcular préstamo / recupero
+    const notificaciones = {};
+    ['A3','A4'].forEach(prod => {
+      const carga = resumenMovs.carga[prod].sum;
+      const sumaFL = resumenMovs.vacio[prod].sum + resumenMovs.lleno[prod].sum;
+      if (sumaFL < carga) {
+        notificaciones[prod] = { tipo:'presto', diff: carga - sumaFL };
+      } else if (sumaFL > carga) {
+        notificaciones[prod] = { tipo:'recupero', diff: sumaFL - carga };
+      } else {
+        notificaciones[prod] = { tipo:'ok', diff: 0 };
+      }
+    });
+
+    // 8) Render único, con TODO
     res.render('ventaxdia', {
       title: 'Venta por Día',
       resultados: results,
       parametros: { cod_rep, fecha, cod_zona },
       totales: {
+        debe: totalDebe,
         venta: totalVenta,
         cobrado_ctdo: totalCobradoCDTO,
         cobrado_ccte: totalCobradoCCTE,
-        bidones_bajados: totalBidonesBajados
+        bidones_bajados: totalBidones
       },
-      // Pasamos los precios para cada producto
       priceA3,
-      priceA4
+      priceA4,
+      detalleMovs,    // si alguna vez lo querés mostrar
+      resumenMovs,    // { carga:{A3:{values, sum},…}, vacio:…, lleno:… }
+      notificaciones  // { A3:{tipo,diff}, A4:{tipo,diff} }
     });
+
   } catch (err) {
     console.error('Error ejecutando la consulta:', err);
-    res.status(500).send('Error en el servidor.');
+    if (!res.headersSent) {
+      res.status(500).send('Error en el servidor.');
+    }
   }
 });
+
+
+
 
 // Ruta GET para clientenuevo
 app.get('/clientenuevo', async (req, res) => {
@@ -255,7 +329,7 @@ app.get('/hojaruta', async (req, res) => {
           cod_cliente: r.cod_cliente,
           nom_cliente: r.nom_cliente,
           cod_prod:    r.cod_prod,
-          semanas:     { 1: {}, 2: {}, 3: {}, 4: {} }
+          semanas:     { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} }
         };
       }
       // escoge saldo inicial según producto
@@ -277,7 +351,7 @@ app.get('/hojaruta', async (req, res) => {
     // Calcular resultado acumulado por semana
     Object.values(pivot).forEach(client => {
       let acc = client.semanas[1].saldo_inicial || 0;
-      for (let w = 1; w <= 4; w++) {
+      for (let w = 1; w <= 5; w++) {
         const s = client.semanas[w];
         s.resultado = acc + s.venta - s.cobrado_ctdo - s.cobrado_ccte;
         client.semanas[w] = s;
@@ -295,7 +369,6 @@ app.get('/hojaruta', async (req, res) => {
     res.status(500).send('Error en el servidor');
   }
 });
-
 
 
 // Ruta raíz (redirige a login)
