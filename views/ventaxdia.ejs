@@ -6,72 +6,136 @@
   <link rel="stylesheet" href="/css/styles.css">
   <style>
     /* Contenedor para la tabla con scroll vertical en la vista */
-    .table-container {
-      max-height: 800px; /* Esta altura limita la vista en pantalla */
-      overflow-y: auto;
-      margin-top: 20px;
-    }
-    /* Estilos básicos para la tabla */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th, td {
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-    /* Encabezado fijo */
-    thead th {
-      position: sticky;
-      top: 0;
-      background-color: #f2f2f2;
-      z-index: 1;
-    }
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-    /* Estilos para el formulario */
-    form div {
-      margin-bottom: 10px;
-    }
-    label {
-      display: inline-block;
-      width: 150px;
-    }
-    input {
-      padding: 5px;
-      width: 200px;
-    }
-    button {
-      padding: 8px 16px;
-      margin: 5px;
-    }
-    /* Estilos para la fila de totales */
-    tfoot {
-      font-weight: bold;
-      background-color: #e2e2e2;
-    }
-    tfoot td {
-      border-top: 2px solid #333;
-    }
-    /* Estilo para filas duplicadas */
-    .duplicado {
-      background-color: #FFA500; /* Color naranja */
-    }
-    /* Estilos para el resumen final */
-    .resumen {
-      margin-top: 20px;
-      font-weight: bold;
-    }
-    .resumen p {
-      margin: 5px 0;
-    }
-    .detalle {
-      margin-left: 40px;
-      font-style: italic;
-      font-size: 0.95em;
-    }
+.table-container {
+  max-height: 800px; /* Esta altura limita la vista en pantalla */
+  overflow-y: auto;
+  margin-top: 20px;
+}
+
+/* Estilos básicos para la tabla */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+/* Encabezado fijo */
+thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f2f2f2;
+  z-index: 1;
+}
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* Estilos para el formulario */
+form div {
+  margin-bottom: 10px;
+}
+label {
+  display: inline-block;
+  width: 150px;
+}
+input {
+  padding: 5px;
+  width: 200px;
+}
+button {
+  padding: 8px 16px;
+  margin: 5px;
+}
+
+/* Estilos para la fila de totales */
+tfoot {
+  font-weight: bold;
+  background-color: #e2e2e2;
+}
+tfoot td {
+  border-top: 2px solid #333;
+}
+
+/* Estilo para filas duplicadas */
+.duplicado {
+  background-color: #FFA500; /* Color naranja */
+}
+
+/* Estilos para el resumen final (Totales) */
+.resumen {
+  margin-top: 30px;
+  margin-bottom: 30px;
+  font-weight: bold;
+}
+.resumen p {
+  margin: 5px 0;
+}
+.detalle {
+  margin-left: 40px;
+  font-style: italic;
+  font-size: 0.95em;
+}
+
+/* Estilos para la sección de movimientos */
+.resumen-movs ul {
+  list-style: none;
+  padding: 0;
+}
+.resumen-movs li {
+  margin: 4px 0;
+}
+
+/* Avisos de préstamo/recupero */
+.aviso {
+  padding: 8px;
+  border-radius: 4px;
+  margin: 6px 0;
+}
+.aviso.presto {
+  background-color: #FFA500; /* naranja */
+  color: #000;
+}
+.aviso.recupero {
+  background-color: #90EE90; /* verde claro */
+  color: #000;
+}
+
+/* Columns layout para Datos A4 / Datos A3 */
+.resumen-columns {
+  display: flex;
+  gap: 2rem;         /* espacio entre columnas */
+  margin-top: 30px;  /* separación contra Totales */
+  margin-bottom: 20px;
+}
+
+/* Base de cada columna */
+.resumen-col {
+  flex: 1;
+  padding: 16px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+/* Color de fondo específico */
+.resumen-col.a4 {
+  background-color: #e8f5e9; /* verde muy suave */
+}
+.resumen-col.a3 {
+  background-color: #e3f2fd; /* azul muy suave */
+}
+
+/* Título dentro de cada columna */
+.resumen-col h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #aaaaaa;
+  padding-bottom: 4px;
+}
+
   </style>
 </head>
 <body>
@@ -196,64 +260,113 @@
       </div>
       
       <!-- Sección de resumen extra -->
-      <div class="resumen">
-        <p>
-          Cantidad de bidones A3 vendidos: 
-          <strong><%= totalA3Vendidos %></strong>
-          <span class="detalle">
-            | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Vendidos %></strong> = $<strong><%= (totalA3Vendidos * priceA3).toFixed(2) %></strong>
-          </span>
-        </p>
-        <p>
-          Cantidad de bidones A4 vendidos: 
-          <strong><%= totalA4Vendidos %></strong>
-          <span class="detalle">
-            | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Vendidos %></strong> = $<strong><%= (totalA4Vendidos * priceA4).toFixed(2) %></strong>
-          </span>
-        </p>
-        <p>
-          Monto cobrado de contado para A3: 
-          <strong><%= totalA3Contado.toFixed(2) %></strong>
-          <span class="detalle">
-            | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Contado.toFixed(2) %></strong> = $<strong><%= (totalA3Contado * priceA3).toFixed(2) %></strong>
-          </span>
-        </p>
-        <p>
-          Monto cobrado de contado para A4: 
-          <strong><%= totalA4Contado.toFixed(2) %></strong>
-          <span class="detalle">
-            | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Contado.toFixed(2) %></strong> = $<strong><%= (totalA4Contado * priceA4).toFixed(2) %></strong>
-          </span>
-        </p>
-        <p>
-          Cobrado cuenta corriente del día A3: 
-          <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong>
-          <span class="detalle">
-            | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA3CuentaCorriente * priceA3).toFixed(2) %></strong>
-          </span>
-        </p>
-        <p>
-          Cobrado cuenta corriente del día A4: 
-          <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong>
-          <span class="detalle">
-            | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA4CuentaCorriente * priceA4).toFixed(2) %></strong>
-          </span>
-        </p>
-        <p>
-          Lo fiado del día para A3: 
-          <strong><%= totalA3Fio.toFixed(2) %></strong>
-          <span class="detalle">
-            | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Fio %></strong> = $<strong><%= (totalA3Fio * priceA3).toFixed(2) %></strong>
-          </span>
-        </p>
-        <p>
-          Lo fiado del día para A4: 
-          <strong><%= totalA4Fio.toFixed(2) %></strong>
-          <span class="detalle">
-            | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Fio %></strong> = $<strong><%= (totalA4Fio * priceA4).toFixed(2) %></strong>
-          </span>
-        </p>
+      <div class="resumen-columns">
+        <!-- Columna A4 -->
+        <div class="resumen-col">
+          <h3>Datos A4</h3>
+          <p>
+            Cantidad de bidones A4 vendidos:
+            <strong><%= totalA4Vendidos %></strong>
+            <span class="detalle">
+              | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Vendidos %></strong> = $<strong><%= (totalA4Vendidos * priceA4).toFixed(2) %></strong>
+            </span>
+          </p>
+          <p>
+            Monto cobrado de contado:
+            <strong><%= totalA4Contado.toFixed(2) %></strong>
+            <span class="detalle">
+              | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Contado.toFixed(2) %></strong> = $<strong><%= (totalA4Contado * priceA4).toFixed(2) %></strong>
+            </span>
+          </p>
+          <p>
+            Cobrado cuenta corriente:
+            <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong>
+            <span class="detalle">
+              | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA4CuentaCorriente * priceA4).toFixed(2) %></strong>
+            </span>
+          </p>
+          <p>
+            Lo fiado del día:
+            <strong><%= totalA4Fio.toFixed(2) %></strong>
+            <span class="detalle">
+              | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Fio %></strong> = $<strong><%= (totalA4Fio * priceA4).toFixed(2) %></strong>
+            </span>
+          </p>
+        </div>
+      
+        <!-- Columna A3 -->
+        <div class="resumen-col">
+          <h3>Datos A3</h3>
+          <p>
+            Cantidad de bidones A3 vendidos:
+            <strong><%= totalA3Vendidos %></strong>
+            <span class="detalle">
+              | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Vendidos %></strong> = $<strong><%= (totalA3Vendidos * priceA3).toFixed(2) %></strong>
+            </span>
+          </p>
+          <p>
+            Monto cobrado de contado:
+            <strong><%= totalA3Contado.toFixed(2) %></strong>
+            <span class="detalle">
+              | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Contado.toFixed(2) %></strong> = $<strong><%= (totalA3Contado * priceA3).toFixed(2) %></strong>
+            </span>
+          </p>
+          <p>
+            Cobrado cuenta corriente:
+            <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong>
+            <span class="detalle">
+              | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA3CuentaCorriente * priceA3).toFixed(2) %></strong>
+            </span>
+          </p>
+          <p>
+            Lo fiado del día:
+            <strong><%= totalA3Fio.toFixed(2) %></strong>
+            <span class="detalle">
+              | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Fio %></strong> = $<strong><%= (totalA3Fio * priceA3).toFixed(2) %></strong>
+            </span>
+          </p>
+        </div>
       </div>
+        <!-- Resumen de movimientos de soda_cardes -->
+  <div class="resumen-movs">
+    <h3>Movimientos de camión</h3>
+    <ul>
+      <li>
+        Carga de camión A4: 
+        <strong>
+          <%= resumenMovs.carga.A4.values.join(' + ') %> 
+          = <%= resumenMovs.carga.A4.sum %>
+        </strong>
+      </li>
+      <li>
+        Carga de camión A3: 
+        <strong>
+          <%= resumenMovs.carga.A3.values.join(' + ') %> 
+          = <%= resumenMovs.carga.A3.sum %>
+        </strong>
+      </li>
+      <li>Bidones bajados vacíos A4: <strong><%= resumenMovs.vacio.A4.sum %></strong></li>
+      <li>Bidones bajados vacíos A3: <strong><%= resumenMovs.vacio.A3.sum %></strong></li>
+      <li>Bidones bajados llenos A4: <strong><%= resumenMovs.lleno.A4.sum %></strong></li>
+      <li>Bidones bajados llenos A3: <strong><%= resumenMovs.lleno.A3.sum %></strong></li>
+    </ul>
+
+    <h4>Estado por producto</h4>
+    <% ['A4','A3'].forEach(function(prod) { 
+         const n = notificaciones[prod];
+         if (n.tipo === 'presto') { %>
+      <p class="aviso presto">
+        <%= prod %> — Prestó <strong><%= n.diff %></strong> bidón<%= n.diff > 1 ? 'es' : '' %>.
+      </p>
+    <% } else if (n.tipo === 'recupero') { %>
+      <p class="aviso recupero">
+        <%= prod %> — Recuperó <strong><%= n.diff %></strong> bidón<%= n.diff > 1 ? 'es' : '' %>.
+      </p>
+    <% } else { %>
+      <p><%= prod %> — Sin diferencias.</p>
+    <% } }); %>
+  </div>
+
     </div>
     
     <!-- Botones para descargar el PDF y volver al menú -->
@@ -319,7 +432,7 @@
         document.body.removeChild(contenedorTemporal);
       });
     }
-   function mostrarErrores() {
+    function mostrarErrores() {
   // 1) Recolectar todas las filas
   const filas = Array.from(document.querySelectorAll('#miTabla tbody tr'));
   const cuenta = {};
