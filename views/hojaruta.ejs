@@ -34,6 +34,7 @@
     .week2 { background-color: #d5f5e3; }
     .week3 { background-color: #d6eaf8; }
     .week4 { background-color: #fcf3cf; }
+    .week5 { background-color: #f9e79f; }
     /* Otros estilos del formulario */
     form label {
       margin-right: 10px;
@@ -75,7 +76,7 @@
               <!-- Semana 1: 5 columnas -->
               <th class="week1" colspan="5">Semana 1</th>
               <!-- Semanas 2 a 4: 4 columnas cada una -->
-              <% for (let w = 2; w <= 4; w++) { %>
+              <% for (let w = 2; w <= 5; w++) { %>
                 <th class="week<%= w %>" colspan="4">Semana <%= w %></th>
               <% } %>
             </tr>
@@ -89,7 +90,7 @@
               <th class="week1">Cob CD</th>
               <th class="week1">Cob CC</th>
               <th class="week1">Resultado</th>
-              <% for (let w = 2; w <= 4; w++) { %>
+              <% for (let w = 2; w <= 5; w++) { %>
                 <th class="week<%= w %>">Venta</th>
                 <th class="week<%= w %>">Cob CD</th>
                 <th class="week<%= w %>">Cob CC</th>
@@ -109,7 +110,7 @@
                 <td class="week1"><%= (s1.cobrado_ctdo || 0).toFixed(0) %></td>
                 <td class="week1"><%= (s1.cobrado_ccte || 0).toFixed(0) %></td>
                 <td class="week1"><%= (s1.resultado || 0).toFixed(0) %></td>
-                <% for (let w = 2; w <= 4; w++) { 
+                <% for (let w = 2; w <= 5; w++) { 
                      const s = row.semanas[w] || {}; %>
                   <td class="week<%= w %>"><%= (s.venta || 0).toFixed(0) %></td>
                   <td class="week<%= w %>"><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
