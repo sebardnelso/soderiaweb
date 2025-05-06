@@ -127,7 +127,7 @@ app.post('/ventaxdia', async (req, res) => {
         hc.cod_cliente,
         sh.nom_cliente,
         hc.cod_prod,
-        SUM(hc.debe)       AS debe_total,
+        SUM(hc.debe)        AS debe_total,
         hc.venta,
         hc.cobrado_ctdo,
         hc.cobrado_ccte,
@@ -155,7 +155,7 @@ app.post('/ventaxdia', async (req, res) => {
       ORDER BY hh_max.secuencia ASC
     `, [cod_rep, fecha, cod_zona]);
 
-    // 2) Totales generales (opcional en back)
+    // 2) Totales generales
     let totalDebe = 0, totalVenta = 0, totalCobradoCDTO = 0, totalCobradoCCTE = 0, totalBidones = 0;
     results.forEach(r => {
       totalDebe        += parseFloat(r.debe_total)    || 0;
@@ -173,50 +173,53 @@ app.post('/ventaxdia', async (req, res) => {
       if (p.cod_prod === 'A4') priceA4 = parseFloat(p.precio) || 0;
     });
 
-    // 4) Traer cada fila de soda_cardes (sin agrupar)
+    // 4) Movimientos de soda_cardes
     const [movsRaw] = await req.db.query(`
       SELECT movimiento, cod_prod, cantidad
       FROM soda_cardes
       WHERE cod_rep = ? AND fecha = ? AND cod_zona = ?
     `, [cod_rep, fecha, cod_zona]);
 
-    // 5) Construir detalleMovs: arrays de cantidades
-    const detalleMovs = {
-      carga: { A3: [], A4: [] },
-      vacio: { A3: [], A4: [] },
-      lleno: { A3: [], A4: [] }
-    };
+    // 5) Armar resumenMovs
+    const detalleMovs = { carga:{A3:[],A4:[]}, vacio:{A3:[],A4:[]}, lleno:{A3:[],A4:[]} };
     movsRaw.forEach(r => {
       if (detalleMovs[r.movimiento] && detalleMovs[r.movimiento][r.cod_prod] !== undefined) {
-        detalleMovs[r.movimiento][r.cod_prod].push(parseFloat(r.cantidad));
+        detalleMovs[r.movimiento][r.cod_prod].push(+r.cantidad);
       }
     });
-
-    // 6) Armar resumenMovs con values + sum
     const resumenMovs = { carga:{}, vacio:{}, lleno:{} };
-    Object.keys(detalleMovs).forEach(mov => {
+    Object.keys(detalleMovs).forEach(m => {
       ['A3','A4'].forEach(prod => {
-        const arr = detalleMovs[mov][prod];
-        const sum = arr.reduce((a,b) => a + b, 0);
-        resumenMovs[mov][prod] = { values: arr, sum };
+        const arr = detalleMovs[m][prod];
+        resumenMovs[m][prod] = { values: arr, sum: arr.reduce((a,b)=>a+b,0) };
       });
     });
 
-    // 7) Calcular préstamo / recupero
+    // 6) Préstamo / recupero
     const notificaciones = {};
     ['A3','A4'].forEach(prod => {
-      const carga = resumenMovs.carga[prod].sum;
-      const sumaFL = resumenMovs.vacio[prod].sum + resumenMovs.lleno[prod].sum;
-      if (sumaFL < carga) {
-        notificaciones[prod] = { tipo:'presto', diff: carga - sumaFL };
-      } else if (sumaFL > carga) {
-        notificaciones[prod] = { tipo:'recupero', diff: sumaFL - carga };
-      } else {
-        notificaciones[prod] = { tipo:'ok', diff: 0 };
-      }
+      const c = resumenMovs.carga[prod].sum;
+      const f = resumenMovs.vacio[prod].sum + resumenMovs.lleno[prod].sum;
+      notificaciones[prod] = f < c
+        ? { tipo:'presto', diff:c-f }
+        : f > c
+          ? { tipo:'recupero', diff:f-c }
+          : { tipo:'ok', diff:0 };
     });
 
-    // 8) Render único, con TODO
+    // 7) Rendiciones cobradas
+    const [rendiciones] = await req.db.query(`
+      SELECT rub.descripcion, r.importe
+      FROM soda_rendiciones r
+      JOIN soda_rubros_rendiciones rub
+        ON r.cod_gasto = rub.cod
+      WHERE r.cod_rep = ? AND r.fecha = ?
+    `, [cod_rep, fecha]);
+    // 7.1) Calcular total de rendiciones
+      const totalRendiciones = rendiciones
+      .reduce((sum, r) => sum + (parseFloat(r.importe) || 0), 0);
+
+    // 8) Render único
     res.render('ventaxdia', {
       title: 'Venta por Día',
       resultados: results,
@@ -230,18 +233,18 @@ app.post('/ventaxdia', async (req, res) => {
       },
       priceA3,
       priceA4,
-      detalleMovs,    // si alguna vez lo querés mostrar
-      resumenMovs,    // { carga:{A3:{values, sum},…}, vacio:…, lleno:… }
-      notificaciones  // { A3:{tipo,diff}, A4:{tipo,diff} }
+      resumenMovs,
+      notificaciones,
+      rendiciones,
+      totalRendiciones
     });
 
   } catch (err) {
     console.error('Error ejecutando la consulta:', err);
-    if (!res.headersSent) {
-      res.status(500).send('Error en el servidor.');
-    }
+    if (!res.headersSent) res.status(500).send('Error en el servidor.');
   }
 });
+
 
 
 
