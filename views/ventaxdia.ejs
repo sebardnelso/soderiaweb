@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="es">
 <head>
@@ -145,7 +146,7 @@ tfoot td {
 }
 .cobranza-rend {
   flex: 1;
-  background: #f0f4c3;
+  background: #f0f1df;
   padding: 12px;
   border-radius: 6px;
 }
@@ -399,9 +400,22 @@ tfoot td {
               <% if (!rendiciones.length) { %>
                 <li><em>No hay rendiciones para esta fecha.</em></li>
               <% } %>
-                  <!-- Total al final -->
+              <!-- Total -->
               <li class="total-rend">
                 <strong>Total:</strong> $<%= totalRendiciones.toFixed(2) %>
+              </li>
+
+              <!-- Diferencia calculada -->
+              <% 
+                // reconstruyo en dinero la cobranza de los bidones:
+                const cobA4 = (totalA4Contado + totalA4CuentaCorriente) * priceA4;
+                const cobA3 = (totalA3Contado + totalA3CuentaCorriente) * priceA3;
+                const cobranzaCalc = cobA4 + cobA3;
+                const diferencia = totalRendiciones - cobranzaCalc;
+              %>
+              <li class="diferencia-rend">
+                <strong>Diferencia calculada:</strong> $<%= diferencia.toFixed(2) %>
+              </li>
             </ul>
           </div>
         </div>
