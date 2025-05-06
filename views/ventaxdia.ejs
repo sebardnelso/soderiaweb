@@ -135,7 +135,26 @@ tfoot td {
   border-bottom: 1px solid #aaaaaa;
   padding-bottom: 4px;
 }
-
+.resumen-flex {
+  display: flex;
+  gap: 2rem;
+  margin-top: 20px;
+}
+.resumen-movs {
+  flex: 1;
+}
+.cobranza-rend {
+  flex: 1;
+  background: #f0f4c3;
+  padding: 12px;
+  border-radius: 6px;
+}
+.cobranza-rend ul .total-rend {
+  margin-top: 10px;
+  font-weight: bold;
+  border-top: 1px solid #999;
+  padding-top: 8px;
+}
   </style>
 </head>
 <body>
@@ -328,46 +347,65 @@ tfoot td {
         </div>
       </div>
         <!-- Resumen de movimientos de soda_cardes -->
-  <div class="resumen-movs">
-    <h3>Movimientos de camión</h3>
-    <ul>
-      <li>
-        Carga de camión A4: 
-        <strong>
-          <%= resumenMovs.carga.A4.values.join(' + ') %> 
-          = <%= resumenMovs.carga.A4.sum %>
-        </strong>
-      </li>
-      <li>
-        Carga de camión A3: 
-        <strong>
-          <%= resumenMovs.carga.A3.values.join(' + ') %> 
-          = <%= resumenMovs.carga.A3.sum %>
-        </strong>
-      </li>
-      <li>Bidones bajados vacíos A4: <strong><%= resumenMovs.vacio.A4.sum %></strong></li>
-      <li>Bidones bajados vacíos A3: <strong><%= resumenMovs.vacio.A3.sum %></strong></li>
-      <li>Bidones bajados llenos A4: <strong><%= resumenMovs.lleno.A4.sum %></strong></li>
-      <li>Bidones bajados llenos A3: <strong><%= resumenMovs.lleno.A3.sum %></strong></li>
-    </ul>
-
-    <h4>Estado por producto</h4>
-    <% ['A4','A3'].forEach(function(prod) { 
-         const n = notificaciones[prod];
-         if (n.tipo === 'presto') { %>
-      <p class="aviso presto">
-        <%= prod %> — Prestó <strong><%= n.diff %></strong> bidón<%= n.diff > 1 ? 'es' : '' %>.
-      </p>
-    <% } else if (n.tipo === 'recupero') { %>
-      <p class="aviso recupero">
-        <%= prod %> — Recuperó <strong><%= n.diff %></strong> bidón<%= n.diff > 1 ? 'es' : '' %>.
-      </p>
-    <% } else { %>
-      <p><%= prod %> — Sin diferencias.</p>
-    <% } }); %>
-  </div>
-
-    </div>
+        <div class="resumen-flex">
+          <!-- Movimientos de camión -->
+          <div class="resumen-movs">
+            <h3>Movimientos de camión</h3>
+            <ul>
+              <li>
+                Carga de camión A4:
+                <strong>
+                  <%= resumenMovs.carga.A4.values.join(' + ') %> = <%= resumenMovs.carga.A4.sum %>
+                </strong>
+              </li>
+              <li>
+                Carga de camión A3:
+                <strong>
+                  <%= resumenMovs.carga.A3.values.join(' + ') %> = <%= resumenMovs.carga.A3.sum %>
+                </strong>
+              </li>
+              <li>Bidones bajados vacíos A4: <strong><%= resumenMovs.vacio.A4.sum %></strong></li>
+              <li>Bidones bajados vacíos A3: <strong><%= resumenMovs.vacio.A3.sum %></strong></li>
+              <li>Bidones bajados llenos A4: <strong><%= resumenMovs.lleno.A4.sum %></strong></li>
+              <li>Bidones bajados llenos A3: <strong><%= resumenMovs.lleno.A3.sum %></strong></li>
+            </ul>
+        
+            <h4>Estado por producto</h4>
+            <% ['A4','A3'].forEach(function(prod) {
+                 const n = notificaciones[prod];
+                 if (n.tipo === 'presto') { %>
+              <p class="aviso presto">
+                <%= prod %> — Prestó <strong><%= n.diff %></strong> bidón<%= n.diff > 1 ? 'es' : '' %>.
+              </p>
+            <% } else if (n.tipo === 'recupero') { %>
+              <p class="aviso recupero">
+                <%= prod %> — Recuperó <strong><%= n.diff %></strong> bidón<%= n.diff > 1 ? 'es' : '' %>.
+              </p>
+            <% } else { %>
+              <p><%= prod %> — Sin diferencias.</p>
+            <% } }); %>
+          </div>
+        
+          <!-- Cobranza cargada -->
+          <div class="cobranza-rend">
+            <h3>Cobranza cargada</h3>
+            <ul>
+              <% rendiciones.forEach(item => { %>
+                <li>
+                  <%= item.descripcion %>: 
+                  <strong>$<%= Number(item.importe).toFixed(2) %></strong>
+                </li>
+              <% }) %>
+              <% if (!rendiciones.length) { %>
+                <li><em>No hay rendiciones para esta fecha.</em></li>
+              <% } %>
+                  <!-- Total al final -->
+              <li class="total-rend">
+                <strong>Total:</strong> $<%= totalRendiciones.toFixed(2) %>
+            </ul>
+          </div>
+        </div>
+        
     
     <!-- Botones para descargar el PDF y volver al menú -->
     <button onclick="generarPDF()">Descargar PDF</button>
