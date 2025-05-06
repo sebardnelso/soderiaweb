@@ -121,66 +121,85 @@ app.post('/ventaxdia', async (req, res) => {
       return res.status(400).send('Todos los campos son requeridos.');
     }
 
-    // 1) Consulta principal
-    const [results] = await req.db.query(`
-      SELECT 
-        hc.cod_cliente,
-        sh.nom_cliente,
-        hc.cod_prod,
-        SUM(hc.debe)        AS debe_total,
-        hc.venta,
-        hc.cobrado_ctdo,
-        hc.cobrado_ccte,
-        hc.bidones_bajados,
-        hc.motivo,
-        hh_max.secuencia
-      FROM soda_hoja_completa hc
-      INNER JOIN (
-        SELECT cod_cliente, MAX(secuencia) AS secuencia
-        FROM soda_hoja_header
-        GROUP BY cod_cliente
-      ) hh_max 
-        ON hc.cod_cliente = hh_max.cod_cliente
-      INNER JOIN soda_hoja_header sh 
-        ON sh.cod_cliente = hc.cod_cliente 
-       AND sh.secuencia  = hh_max.secuencia
-      WHERE 
-        hc.cod_rep   = ? 
-        AND hc.fecha    = ? 
-        AND hc.cod_zona = ?
-      GROUP BY 
-        hc.cod_cliente, sh.nom_cliente, hc.cod_prod,
-        hc.venta, hc.cobrado_ctdo, hc.cobrado_ccte,
-        hc.bidones_bajados, hc.motivo, hh_max.secuencia
-      ORDER BY hh_max.secuencia ASC
-    `, [cod_rep, fecha, cod_zona]);
+    // ————————————————————————————————————————————
+    // 1) Traer cliente+prod con saldo inicial o agregado
+    const [results] = await req.db.query(
+      `SELECT
+         hl.cod_cliente,
+         sh.nom_cliente,
+         hl.cod_prod,
+         COALESCE(hc_sum.debe_total,
+           CASE WHEN hl.cod_prod='A3' THEN sh.saldiA3
+                WHEN hl.cod_prod='A4' THEN sh.saldiA4
+                ELSE 0 END
+         ) AS debe_total,
+         COALESCE(hc_sum.venta,0)        AS venta,
+         COALESCE(hc_sum.cobrado_ctdo,0) AS cobrado_ctdo,
+         COALESCE(hc_sum.cobrado_ccte,0) AS cobrado_ccte,
+         COALESCE(hc_sum.bidones,0)      AS bidones_bajados,
+         hc_sum.motivo,
+         sh.secuencia
+       FROM
+        ( SELECT DISTINCT cod_cliente, cod_prod
+          FROM soda_hoja_linea
+          WHERE cod_rep=? AND cod_zona=? AND cod_prod IN('A3','A4','DIS')
+        ) hl
+       JOIN
+        ( SELECT sh2.cod_cliente, sh2.nom_cliente, sh2.saldiA3, sh2.saldiA4, sh2.secuencia
+          FROM soda_hoja_header sh2
+          INNER JOIN (
+            SELECT cod_cliente, MAX(secuencia) AS secuencia
+            FROM soda_hoja_header
+            WHERE cod_rep=? AND cod_zona=?
+            GROUP BY cod_cliente
+          ) hm ON hm.cod_cliente=sh2.cod_cliente AND hm.secuencia=sh2.secuencia
+        ) sh ON sh.cod_cliente=hl.cod_cliente
+       LEFT JOIN
+        ( SELECT cod_cliente, cod_prod,
+                 SUM(debe)        AS debe_total,
+                 SUM(venta)       AS venta,
+                 SUM(cobrado_ctdo)AS cobrado_ctdo,
+                 SUM(cobrado_ccte)AS cobrado_ccte,
+                 SUM(bidones_bajados) AS bidones,
+                 GROUP_CONCAT(DISTINCT motivo) AS motivo
+          FROM soda_hoja_completa
+          WHERE cod_rep=? AND fecha=? AND cod_zona=?
+          GROUP BY cod_cliente, cod_prod
+        ) hc_sum
+        ON hc_sum.cod_cliente=hl.cod_cliente
+       AND hc_sum.cod_prod   =hl.cod_prod
+       ORDER BY sh.secuencia ASC`,
+      [cod_rep, cod_zona, cod_rep, cod_zona, cod_rep, fecha, cod_zona]
+    );
 
+    // ————————————————————————————————————————————
     // 2) Totales generales
-    let totalDebe = 0, totalVenta = 0, totalCobradoCDTO = 0, totalCobradoCCTE = 0, totalBidones = 0;
+    let totalDebe = 0, totalVenta = 0, totalCobCD = 0, totalCobCC = 0, totalBid = 0;
     results.forEach(r => {
-      totalDebe        += parseFloat(r.debe_total)    || 0;
-      totalVenta       += parseFloat(r.venta)         || 0;
-      totalCobradoCDTO += parseFloat(r.cobrado_ctdo)  || 0;
-      totalCobradoCCTE += parseFloat(r.cobrado_ccte)  || 0;
-      totalBidones     += parseFloat(r.bidones_bajados) || 0;
+      totalDebe  += +r.debe_total    || 0;
+      totalVenta += +r.venta         || 0;
+      totalCobCD += +r.cobrado_ctdo  || 0;
+      totalCobCC += +r.cobrado_ccte  || 0;
+      totalBid   += +r.bidones_bajados|| 0;
     });
 
+    // ————————————————————————————————————————————
     // 3) Precios A3 / A4
-    const [prices] = await req.db.query('SELECT cod_prod, precio FROM soda_precios');
+    const [prices] = await req.db.query(`SELECT cod_prod, precio FROM soda_precios`);
     let priceA3 = 0, priceA4 = 0;
     prices.forEach(p => {
-      if (p.cod_prod === 'A3') priceA3 = parseFloat(p.precio) || 0;
-      if (p.cod_prod === 'A4') priceA4 = parseFloat(p.precio) || 0;
+      if (p.cod_prod === 'A3') priceA3 = +p.precio;
+      if (p.cod_prod === 'A4') priceA4 = +p.precio;
     });
 
-    // 4) Movimientos de soda_cardes
-    const [movsRaw] = await req.db.query(`
-      SELECT movimiento, cod_prod, cantidad
-      FROM soda_cardes
-      WHERE cod_rep = ? AND fecha = ? AND cod_zona = ?
-    `, [cod_rep, fecha, cod_zona]);
-
-    // 5) Armar resumenMovs
+    // ————————————————————————————————————————————
+    // 4) Movimientos de camión (soda_cardes) → resumenMovs
+    const [movsRaw] = await req.db.query(
+      `SELECT movimiento, cod_prod, cantidad
+       FROM soda_cardes
+       WHERE cod_rep=? AND fecha=? AND cod_zona=?`,
+      [cod_rep, fecha, cod_zona]
+    );
     const detalleMovs = { carga:{A3:[],A4:[]}, vacio:{A3:[],A4:[]}, lleno:{A3:[],A4:[]} };
     movsRaw.forEach(r => {
       if (detalleMovs[r.movimiento] && detalleMovs[r.movimiento][r.cod_prod] !== undefined) {
@@ -188,14 +207,15 @@ app.post('/ventaxdia', async (req, res) => {
       }
     });
     const resumenMovs = { carga:{}, vacio:{}, lleno:{} };
-    Object.keys(detalleMovs).forEach(m => {
+    ['carga','vacio','lleno'].forEach(mov => {
       ['A3','A4'].forEach(prod => {
-        const arr = detalleMovs[m][prod];
-        resumenMovs[m][prod] = { values: arr, sum: arr.reduce((a,b)=>a+b,0) };
+        const arr = detalleMovs[mov][prod];
+        resumenMovs[mov][prod] = { values: arr, sum: arr.reduce((a,b)=>a+b,0) };
       });
     });
 
-    // 6) Préstamo / recupero
+    // ————————————————————————————————————————————
+    // 5) Préstamo / recupero
     const notificaciones = {};
     ['A3','A4'].forEach(prod => {
       const c = resumenMovs.carga[prod].sum;
@@ -207,20 +227,19 @@ app.post('/ventaxdia', async (req, res) => {
           : { tipo:'ok', diff:0 };
     });
 
-    // 7) Rendiciones cobradas
-    const [rendiciones] = await req.db.query(`
-      SELECT rub.descripcion, r.importe
-      FROM soda_rendiciones r
-      JOIN soda_rubros_rendiciones rub
-        ON r.cod_gasto = rub.cod
-      WHERE r.cod_rep = ? AND r.fecha = ?
-    `, [cod_rep, fecha]);
-    
-    // 7.1) Calcular total de rendiciones
-      const totalRendiciones = rendiciones
-      .reduce((sum, r) => sum + (parseFloat(r.importe) || 0), 0);
+    // ————————————————————————————————————————————
+    // 6) Rendiciones cobradas
+    const [rendiciones] = await req.db.query(
+      `SELECT rub.descripcion, r.importe
+       FROM soda_rendiciones r
+       JOIN soda_rubros_rendiciones rub ON r.cod_gasto=rub.cod
+       WHERE r.cod_rep=? AND r.fecha=?`,
+      [cod_rep, fecha]
+    );
+    const totalRendiciones = rendiciones.reduce((s,r)=>s+(+r.importe||0),0);
 
-    // 8) Render único
+    // ————————————————————————————————————————————
+    // 7) Render final
     res.render('ventaxdia', {
       title: 'Venta por Día',
       resultados: results,
@@ -228,9 +247,9 @@ app.post('/ventaxdia', async (req, res) => {
       totales: {
         debe: totalDebe,
         venta: totalVenta,
-        cobrado_ctdo: totalCobradoCDTO,
-        cobrado_ccte: totalCobradoCCTE,
-        bidones_bajados: totalBidones
+        cobrado_ctdo: totalCobCD,
+        cobrado_ccte: totalCobCC,
+        bidones_bajados: totalBid
       },
       priceA3,
       priceA4,
@@ -241,10 +260,11 @@ app.post('/ventaxdia', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error ejecutando la consulta:', err);
+    console.error('Error en /ventaxdia:', err);
     if (!res.headersSent) res.status(500).send('Error en el servidor.');
   }
 });
+
 
 
 
