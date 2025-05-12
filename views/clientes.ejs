@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Clientes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #f4f6f9;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    label {
+      font-weight: 600;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    input[type="text"], input[type="date"] {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    .btn-bar {
+      margin-top: 30px;
+      display: flex;
+      gap: 15px;
+    }
+    button {
+      padding: 10px 16px;
+      font-weight: 600;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: #3498db;
+      color: white;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    .search-bar {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #e8cb91;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 9999;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .modal input {
+      margin-top: 10px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gestión de Clientes</h1>
+
+    <div class="btn-bar">
+      <button onclick="nuevoCliente()">Nuevo Cliente</button>
+      <button onclick="modificarCliente()">Modificar Cliente</button>
+      <button onclick="eliminarCliente()">Eliminar Cliente</button>
+      <button onclick="guardarCliente()">Guardar Cliente</button>
+      <button onclick="location.href='/menu'">Volver</button>
+    </div>
+
+    <div class="search-bar">
+      <label for="buscar_cod">Buscar por código:</label>
+      <input type="text" id="buscar_cod" placeholder="Ingresar código cliente">
+      <button onclick="buscarPorCodigo()">Buscar</button>
+
+      <label for="buscar_zona">Filtrar por zona:</label>
+        <input type="text" id="buscar_zona" placeholder="Ej: 44">
+        <button onclick="filtrarPorZona()">Por zona</button>
+
+    </div>
+
+    <form id="form-cliente">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="cod_cliente">Código Cliente</label>
+          <input type="text" id="cod_cliente" name="cod_cliente" disabled>
+        </div>
+        <div class="form-group">
+          <label for="nom_cliente">Nombre</label>
+          <input type="text" id="nom_cliente" name="nom_cliente" disabled>
+        </div>
+        <div class="form-group">
+          <label for="domicilio">Domicilio</label>
+          <input type="text" id="domicilio" name="domicilio" disabled>
+        </div>
+        <div class="form-group">
+          <label for="localidad">Localidad</label>
+          <input type="text" id="localidad" name="localidad" disabled>
+        </div>
+        <div class="form-group">
+          <label for="celular">Celular</label>
+          <input type="text" id="celular" name="celular" disabled>
+        </div>
+        <div class="form-group">
+          <label for="cod_rep">Repartidor</label>
+          <input type="text" id="cod_rep" name="cod_rep" disabled>
+        </div>
+        <div class="form-group">
+          <label for="cod_zona">Zona</label>
+          <input type="text" id="cod_zona" name="cod_zona" disabled>
+        </div>
+        <div class="form-group">
+          <label for="fecha">Fecha</label>
+          <input type="date" id="fecha" name="fecha" disabled>
+        </div>
+        <div class="form-group">
+          <label for="orden">Orden</label>
+          <input type="text" id="orden" name="orden" disabled>
+        </div>
+        <div class="form-group">
+          <label for="secuencia">Secuencia</label>
+          <input type="text" id="secuencia" name="secuencia" disabled>
+        </div>
+        <div class="form-group">
+          <label for="saldiA3">Saldo A3</label>
+          <input type="text" id="saldiA3" name="saldiA3" disabled>
+        </div>
+        <div class="form-group">
+          <label for="saldiA4">Saldo A4</label>
+          <input type="text" id="saldiA4" name="saldiA4" disabled>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="modal" class="modal" style="display:none;"></div>
+  <div id="tabla-zona" style="display:none; margin-top:30px;"></div>
+
+  <script>
+    function modificarCliente() {
+      document.querySelectorAll('#form-cliente input').forEach(input => input.disabled = false);
+    }
+
+    async function nuevoCliente() {
+  try {
+    const res = await fetch('/clientes/nuevoCodigo');
+    const data = await res.json();
+
+    if (data.success) {
+      document.getElementById('form-cliente').reset();
+      modificarCliente();
+      document.getElementById('cod_cliente').value = data.codigo;
+    } else {
+      alert('No se pudo generar nuevo código.');
+    }
+  } catch (err) {
+    alert('Error al generar nuevo cliente.');
+    console.error(err);
+  }
+}
+
+
+    function eliminarCliente() {
+      const cod_cliente = document.getElementById('cod_cliente').value;
+      if (!cod_cliente) return alert('Debes ingresar un código de cliente.');
+
+      fetch('/clientes/eliminar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cod_cliente })
+      })
+      .then(res => res.ok ? location.reload() : alert('Error al eliminar.'));
+    }
+
+    function guardarCliente() {
+  // 1. Habilito todos los campos temporalmente
+  const inputs = document.querySelectorAll('#form-cliente input');
+  inputs.forEach(input => input.disabled = false);
+
+  // 2. Tomo los datos
+  const data = {};
+  inputs.forEach(input => {
+    data[input.name] = input.value;
+  });
+
+  // 3. Vuelvo a deshabilitar los campos
+  inputs.forEach(input => input.disabled = true);
+
+  // 4. Verifico si ya existe el cliente
+  fetch(`/clientes/buscar?cod_cliente=${data.cod_cliente}`)
+    .then(res => res.json())
+    .then(async result => {
+      const ruta = result.success ? '/clientes/modificar' : '/clientes/guardar';
+
+      const res = await fetch(ruta, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (res.ok) {
+        alert('Cliente guardado correctamente.');
+        window.location.reload();
+      } else {
+        alert('Error al guardar cliente.');
+      }
+    });
+}
+
+
+    function buscarPorCodigo() {
+      const cod = document.getElementById('buscar_cod').value.trim();
+      if (!cod) return;
+      fetch(`/clientes/buscar?cod_cliente=${cod}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) cargarFormulario(data.cliente);
+          else alert('Cliente no encontrado.');
+        });
+    }
+
+    function cargarFormulario(cli) {
+      for (let key in cli) {
+        if (document.getElementById(key)) {
+          document.getElementById(key).value = cli[key];
+        }
+      }
+    }
+
+    document.getElementById('buscar_cod').addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        mostrarModalNombre();
+      }
+    });
+
+    function mostrarModalNombre() {
+      const modal = document.getElementById('modal');
+      modal.innerHTML = '<p>Ingrese nombre del cliente:</p><input type="text" id="nombreBusqueda">';
+      modal.style.display = 'block';
+
+      const input = document.getElementById('nombreBusqueda');
+      input.focus();
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') buscarCoincidencias(input.value);
+      });
+    }
+
+    function buscarCoincidencias(nombre) {
+      fetch(`/clientes/buscarPorNombre?nombre=${encodeURIComponent(nombre)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.length) mostrarCoincidencias(data);
+          else alert('Sin coincidencias.');
+        });
+    }
+
+    function mostrarCoincidencias(lista) {
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <p>Coincidencias encontradas (Escape para cancelar):</p>
+    <table style="width:100%; border-collapse: collapse;">
+      <thead>
+        <tr style="background-color:#e1e5ea;">
+          <th style="padding:6px; border:1px solid #ccc;">Cod Cliente</th>
+          <th style="padding:6px; border:1px solid #ccc;">Nombre</th>
+          <th style="padding:6px; border:1px solid #ccc;">Domicilio</th>
+          <th style="padding:6px; border:1px solid #ccc;">Localidad</th>
+          <th style="padding:6px; border:1px solid #ccc;">Celular</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lista.map(cli => `
+          <tr onclick='cargarDesdeLista(${JSON.stringify(cli)})' style="cursor:pointer;" onmouseover="this.style.background='#dbeeff'" onmouseout="this.style.background='white'">
+            <td style="padding:6px; border:1px solid #ccc;">${cli.cod_cliente}</td>
+            <td style="padding:6px; border:1px solid #ccc;">${cli.nom_cliente}</td>
+            <td style="padding:6px; border:1px solid #ccc;">${cli.domicilio || ''}</td>
+            <td style="padding:6px; border:1px solid #ccc;">${cli.localidad || ''}</td>
+            <td style="padding:6px; border:1px solid #ccc;">${cli.celular || ''}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+  modal.style.display = 'block';
+
+  // Escape para cerrar
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') modal.style.display = 'none';
+  });
+}
+
+
+    function cargarDesdeLista(cli) {
+      document.getElementById('modal').style.display = 'none';
+      cargarFormulario(cli);
+    }
+
+    function filtrarPorZona() {
+  const zona = document.getElementById('buscar_zona').value.trim();
+  if (!zona) return alert('Debes ingresar una zona');
+
+  // Ocultar formulario
+  document.getElementById('form-cliente').style.display = 'none';
+  document.getElementById('tabla-zona').style.display = 'block';
+
+  fetch(`/clientes/porZona?cod_zona=${zona}`)
+    .then(res => res.json())
+    .then(data => {
+      if (!data.length) return alert('No se encontraron clientes en esa zona.');
+
+      const tabla = `
+        <table border="1" cellpadding="4" cellspacing="0" style="width:100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background:#e1e5ea;">
+              ${Object.keys(data[0]).map(key => `<th>${key}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(row => `
+              <tr>
+                ${Object.entries(row).map(([k,v]) => `
+                  <td contenteditable onblur="guardarCelda(this, '${row.cod_cliente}', '${k}')">${v ?? ''}</td>
+                `).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+      document.getElementById('tabla-zona').innerHTML = tabla;
+    });
+}
+
+function guardarCelda(td, cod_cliente, campo) {
+  const nuevoValor = td.textContent.trim();
+  fetch('/clientes/actualizarCampo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cod_cliente, campo, valor: nuevoValor })
+  })
+  .then(res => {
+    if (res.ok) td.style.backgroundColor = '#d4edda'; // verde éxito
+    else td.style.backgroundColor = '#f8d7da'; // rojo error
+    setTimeout(() => td.style.backgroundColor = '', 1000);
+  });
+}
+
+  </script>
+</body>
+</html>
