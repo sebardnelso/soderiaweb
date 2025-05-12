@@ -3,16 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title><%= title %></title>
-  <!-- Puedes enlazar tu CSS externo si lo tienes -->
   <link rel="stylesheet" href="/css/styles.css">
   <style>
-    /* Contenedor para la tabla (sin scroll en el PDF) */
     .table-container {
       max-height: 800px;
       overflow-y: auto;
       margin-top: 20px;
     }
-    /* Estilos generales para la tabla */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -22,20 +19,12 @@
       border: 1px solid #000;
       text-align: center;
     }
-    /* Encabezado fijo (solo en la vista, se quitará para PDF) */
     thead th {
       position: sticky;
       top: 0;
       background-color: #f2f2f2;
       z-index: 1;
     }
-    /* Clases para diferenciar semanas */
-    .week1 { background-color: #f2d7d5; }
-    .week2 { background-color: #d5f5e3; }
-    .week3 { background-color: #d6eaf8; }
-    .week4 { background-color: #fcf3cf; }
-    .week5 { background-color: #f9e79f; }
-    /* Otros estilos del formulario */
     form label {
       margin-right: 10px;
     }
@@ -50,21 +39,32 @@
 </head>
 <body>
   <h1>Hoja Ruta</h1>
-  
+  <button class="btn" onclick="location.href='/menu'">Volver</button>
   <form method="get" action="/hojaruta">
     <label>Rep: <input name="cod_rep" value="<%= params.cod_rep || '' %>"></label>
     <label>Zona: <input name="cod_zona" value="<%= params.cod_zona || '' %>"></label>
-    <label>Mes: <input name="mes" type="number" min="1" max="12" value="<%= params.mes || '' %>"></label>
+    <label>Mes desde: <input name="mes_desde" type="number" min="1" max="12" value="<%= params.mes_desde || '' %>"></label>
+    <label>Mes hasta: <input name="mes_hasta" type="number" min="1" max="12" value="<%= params.mes_hasta || '' %>"></label>
     <label>Año: <input name="anio" type="number" min="2000" value="<%= params.anio || '' %>"></label>
     <button type="submit">Filtrar</button>
     <button type="button" id="btnVerErrores" onclick="mostrarErrores()">Ver Cuenta corriente</button>
+    
+  </form>
+
+  <!-- Nuevo formulario por código de cliente -->
+  <form method="get" action="/hojaruta/cliente">
+    <label>Código Cliente: <input name="cod_cliente" value="<%= params.cod_cliente || '' %>"></label>
+    <input type="hidden" name="mes_desde" value="<%= params.mes_desde || '' %>">
+    <input type="hidden" name="mes_hasta" value="<%= params.mes_hasta || '' %>">
+    <input type="hidden" name="anio" value="<%= params.anio || '' %>">
+    <button type="submit">Filtrar Cliente</button>
+    
   </form>
   
+
   <% if (data.length) { %>
-    <!-- Botón para generar el PDF -->
     <button onclick="generarPDF()">Descargar PDF</button>
-    
-    <!-- Contenedor que se usará para generar el PDF -->
+
     <div id="pdfContainer">
       <div class="table-container">
         <table>
@@ -73,29 +73,22 @@
               <th>Cod Cliente</th>
               <th>Cliente</th>
               <th>Cod Prod</th>
-              <!-- Semana 1: 5 columnas -->
-              <th class="week1" colspan="5">Semana 1</th>
-              <!-- Semanas 2 a 4: 4 columnas cada una -->
-              <% for (let w = 2; w <= 5; w++) { %>
-                <th class="week<%= w %>" colspan="4">Semana <%= w %></th>
-              <% } %>
+              <% 
+                const todasLasSemanas = Object.keys(data[0]?.semanas || {}).sort((a, b) => {
+                  const [ma, wa] = a.split('-').map(Number);
+                  const [mb, wb] = b.split('-').map(Number);
+                  return ma === mb ? wa - wb : ma - mb;
+                });
+              %>
+              <% todasLasSemanas.forEach(sem => { %>
+                <th colspan="5">Mes-Sem <%= sem %></th>
+              <% }) %>
             </tr>
             <tr>
-              <th></th>
-              <th></th>
-              <th></th>
-              <!-- Encabezados para Semana 1 -->
-              <th class="week1">Saldo Init</th>
-              <th class="week1">Venta</th>
-              <th class="week1">Cob CD</th>
-              <th class="week1">Cob CC</th>
-              <th class="week1">Resultado</th>
-              <% for (let w = 2; w <= 5; w++) { %>
-                <th class="week<%= w %>">Venta</th>
-                <th class="week<%= w %>">Cob CD</th>
-                <th class="week<%= w %>">Cob CC</th>
-                <th class="week<%= w %>">Resultado</th>
-              <% } %>
+              <th></th><th></th><th></th>
+              <% todasLasSemanas.forEach(_ => { %>
+                <th>Saldo</th><th>Venta</th><th>CD</th><th>CC</th><th>Res</th>
+              <% }) %>
             </tr>
           </thead>
           <tbody>
@@ -104,61 +97,45 @@
                 <td><%= row.cod_cliente %></td>
                 <td><%= row.nom_cliente %></td>
                 <td><%= row.cod_prod %></td>
-                <% const s1 = row.semanas[1] || {}; %>
-                <td class="week1"><%= (s1.saldo_inicial || 0).toFixed(0) %></td>
-                <td class="week1"><%= (s1.venta || 0).toFixed(0) %></td>
-                <td class="week1"><%= (s1.cobrado_ctdo || 0).toFixed(0) %></td>
-                <td class="week1"><%= (s1.cobrado_ccte || 0).toFixed(0) %></td>
-                <td class="week1"><%= (s1.resultado || 0).toFixed(0) %></td>
-                <% for (let w = 2; w <= 5; w++) { 
-                     const s = row.semanas[w] || {}; %>
-                  <td class="week<%= w %>"><%= (s.venta || 0).toFixed(0) %></td>
-                  <td class="week<%= w %>"><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
-                  <td class="week<%= w %>"><%= (s.cobrado_ccte || 0).toFixed(0) %></td>
-                  <td class="week<%= w %>"><%= (s.resultado || 0).toFixed(0) %></td>
-                <% } %>
+                <% todasLasSemanas.forEach(skey => {
+                     const s = row.semanas[skey] || {}; %>
+                  <td><%= (s.saldo_inicial || 0).toFixed(0) %></td>
+                  <td><%= (s.venta || 0).toFixed(0) %></td>
+                  <td><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
+                  <td><%= (s.cobrado_ccte || 0).toFixed(0) %></td>
+                  <td><%= (s.resultado || 0).toFixed(0) %></td>
+                <% }) %>
               </tr>
             <% }) %>
           </tbody>
         </table>
       </div>
     </div>
-  <% } else if (params.cod_rep) { %>
-    <p>No hay datos para ese repartidor/zona/mes/año.</p>
+  <% } else if (params.cod_rep || params.cod_cliente) { %>
+    <p>No hay datos para esos parámetros.</p>
   <% } %>
 
-  <!-- Incluir jsPDF y html2canvas desde CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script>
     function generarPDF() {
-      // Clonar el contenedor que incluye la tabla
       const contenedorOriginal = document.getElementById('pdfContainer');
       const clon = contenedorOriginal.cloneNode(true);
-
-      // Quitar restricciones de altura y posición sticky
       clon.style.maxHeight = "none";
       clon.style.overflow = "visible";
-      clon.querySelectorAll('.table-container').forEach(el => {
-        el.style.maxHeight = "none";
-        el.style.overflow = "visible";
-      });
       clon.querySelectorAll("thead th").forEach(el => {
         el.style.position = "static";
       });
-
-      // Crear un contenedor temporal fuera de la vista
       const contenedorTemporal = document.createElement('div');
       contenedorTemporal.style.position = 'absolute';
       contenedorTemporal.style.top = '-10000px';
       contenedorTemporal.appendChild(clon);
       document.body.appendChild(contenedorTemporal);
 
-      // Usar html2canvas para capturar la imagen del clon
       html2canvas(clon, { useCORS: true, scale: 2 }).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('l', 'mm', 'a4'); // 'l' para landscape
+        const pdf = new jsPDF('l', 'mm', 'a4');
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
         const imgHeight = canvas.height * pageWidth / canvas.width;
@@ -168,7 +145,6 @@
         pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
         heightLeft -= pageHeight;
 
-        // Agregar páginas si es necesario
         while (heightLeft > 0) {
           position = heightLeft - imgHeight;
           pdf.addPage();
@@ -180,25 +156,19 @@
         document.body.removeChild(contenedorTemporal);
       });
     }
+
     function mostrarErrores() {
-    // 1) Recolectar todas las filas del cuerpo de la tabla
-    const filas = Array.from(document.querySelectorAll('#pdfContainer table tbody tr'));
-
-    filas.forEach(fila => {
-      // 2) Leer Saldo Init (columna 4 → índice 3)
-      const saldoInit = parseFloat(fila.cells[3].innerText) || 0;
-
-      // 3) Leer los resultados de las 4 semanas (índices 7, 11, 15, 19)
-      const indicesResultados = [7, 11, 15, 19];
-      const resultados = indicesResultados.map(i => parseFloat(fila.cells[i].innerText) || 0);
-
-      // 4) Mostrar si SALDO INIT > 0 O ALGÚN RESULTADO > 0
-      const cumple = saldoInit > 0 || resultados.some(r => r > 0);
-
-      // 5) Ocultar o mostrar la fila
-      fila.style.display = cumple ? '' : 'none';
-    });
-  }
+      const filas = Array.from(document.querySelectorAll('#pdfContainer table tbody tr'));
+      filas.forEach(fila => {
+        const saldoInit = parseFloat(fila.cells[3].innerText) || 0;
+        const resultados = [];
+        for (let i = 7; i < fila.cells.length; i += 5) {
+          resultados.push(parseFloat(fila.cells[i].innerText) || 0);
+        }
+        const cumple = saldoInit > 0 || resultados.some(r => r > 0);
+        fila.style.display = cumple ? '' : 'none';
+      });
+    }
   </script>
 </body>
 </html>
