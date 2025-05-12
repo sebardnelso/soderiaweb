@@ -208,62 +208,84 @@
       </div>
 
       <!-- Resumen por producto A4/A3 -->
-      <div class="resumen-columns">
-        <div class="resumen-col a4">
-          <h3>Datos A4</h3>
-          <p>
-            Cantidad vendida: <strong><%= totalA4Vendidos %></strong>
-            <span class="detalle">
-              | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Vendidos %></strong> = $<strong><%= (totalA4Vendidos*priceA4).toFixed(2) %></strong>
-            </span>
-          </p>
-          <p>
-            Cobrado contado: <strong><%= totalA4Contado.toFixed(2) %></strong>
-            <span class="detalle">
-              | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Contado.toFixed(2) %></strong> = $<strong><%= (totalA4Contado*priceA4).toFixed(2) %></strong>
-            </span>
-          </p>
-          <p>
-            Cobrado cte: <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong>
-            <span class="detalle">
-              | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA4CuentaCorriente*priceA4).toFixed(2) %></strong>
-            </span>
-          </p>
-          <p>
-            Lo fiado: <strong><%= totalA4Fio.toFixed(2) %></strong>
-            <span class="detalle">
-              | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Fio %></strong> = $<strong><%= (totalA4Fio*priceA4).toFixed(2) %></strong>
-            </span>
-          </p>
-        </div>
-        <div class="resumen-col a3">
-          <h3>Datos A3</h3>
-          <p>
-            Cantidad vendida: <strong><%= totalA3Vendidos %></strong>
-            <span class="detalle">
-              | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Vendidos %></strong> = $<strong><%= (totalA3Vendidos*priceA3).toFixed(2) %></strong>
-            </span>
-          </p>
-          <p>
-            Cobrado contado: <strong><%= totalA3Contado.toFixed(2) %></strong>
-            <span class="detalle">
-              | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Contado.toFixed(2) %></strong> = $<strong><%= (totalA3Contado*priceA3).toFixed(2) %></strong>
-            </span>
-          </p>
-          <p>
-            Cobrado cte: <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong>
-            <span class="detalle">
-              | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA3CuentaCorriente*priceA3).toFixed(2) %></strong>
-            </span>
-          </p>
-          <p>
-            Lo fiado: <strong><%= totalA3Fio.toFixed(2) %></strong>
-            <span class="detalle">
-              | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Fio %></strong> = $<strong><%= (totalA3Fio*priceA3).toFixed(2) %></strong>
-            </span>
-          </p>
-        </div>
-      </div>
+<!-- Resumen por producto A4/A3 -->
+<div class="resumen-columns">
+  <div class="resumen-col a4">
+    <h3>Datos A4</h3>
+    <p>
+      Cantidad vendida: <strong><%= totalA4Vendidos %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Vendidos %></strong> = $<strong><%= (totalA4Vendidos*priceA4).toFixed(2) %></strong>
+      </span>
+    </p>
+    <p>
+      Cobrado contado: <strong><%= totalA4Contado.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Contado.toFixed(2) %></strong> = $<strong><%= (totalA4Contado*priceA4).toFixed(2) %></strong>
+      </span>
+    </p>
+    <p>
+      Cobrado cte: <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA4CuentaCorriente*priceA4).toFixed(2) %></strong>
+      </span>
+    </p>
+    <% if (detalleCobranzaA4 && detalleCobranzaA4.length) { %>
+      <details>
+        <summary>Ver cobrado ccte</summary>
+        <ul>
+          <% detalleCobranzaA4.forEach(item => { %>
+            <li><%= item.cod_cliente %> — <strong><%= item.cobrado.toFixed(2) %></strong></li>
+          <% }) %>
+        </ul>
+      </details>
+    <% } %>
+    <p>
+      Lo fiado: <strong><%= totalA4Fio.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Fio %></strong> = $<strong><%= (totalA4Fio*priceA4).toFixed(2) %></strong>
+      </span>
+    </p>
+  </div>
+  <div class="resumen-col a3">
+    <h3>Datos A3</h3>
+    <p>
+      Cantidad vendida: <strong><%= totalA3Vendidos %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Vendidos %></strong> = $<strong><%= (totalA3Vendidos*priceA3).toFixed(2) %></strong>
+      </span>
+    </p>
+    <p>
+      Cobrado contado: <strong><%= totalA3Contado.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Contado.toFixed(2) %></strong> = $<strong><%= (totalA3Contado*priceA3).toFixed(2) %></strong>
+      </span>
+    </p>
+    <p>
+      Cobrado cte: <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA3CuentaCorriente*priceA3).toFixed(2) %></strong>
+      </span>
+    </p>
+    <% if (detalleCobranzaA3 && detalleCobranzaA3.length) { %>
+      <details>
+        <summary>Ver cobrado ccte</summary>
+        <ul>
+          <% detalleCobranzaA3.forEach(item => { %>
+            <li><%= item.cod_cliente %> — <strong><%= item.cobrado.toFixed(2) %></strong></li>
+          <% }) %>
+        </ul>
+      </details>
+    <% } %>
+    <p>
+      Lo fiado: <strong><%= totalA3Fio.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Fio %></strong> = $<strong><%= (totalA3Fio*priceA3).toFixed(2) %></strong>
+      </span>
+    </p>
+  </div>
+</div>
+
 
       <!-- Movimientos y Cobranza lado a lado -->
       <div class="resumen-flex">
