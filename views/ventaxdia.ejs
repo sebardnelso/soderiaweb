@@ -287,55 +287,73 @@
 </div>
 
 
-      <!-- Movimientos y Cobranza lado a lado -->
-      <div class="resumen-flex">
-        <div class="resumen-movs">
-          <h3>Movimientos de camión</h3>
-          <ul>
-            <li>
-              Carga A4: 
-              <strong><%= resumenMovs.carga.A4.values.join(' + ') %> = <%= resumenMovs.carga.A4.sum %></strong>
-            </li>
-            <li>
-              Carga A3: 
-              <strong><%= resumenMovs.carga.A3.values.join(' + ') %> = <%= resumenMovs.carga.A3.sum %></strong>
-            </li>
-            <li>Vacios A4: <strong><%= resumenMovs.vacio.A4.sum %></strong></li>
-            <li>Vacios A3: <strong><%= resumenMovs.vacio.A3.sum %></strong></li>
-            <li>Llenos A4: <strong><%= resumenMovs.lleno.A4.sum %></strong></li>
-            <li>Llenos A3: <strong><%= resumenMovs.lleno.A3.sum %></strong></li>
-          </ul>
-          <h4>Estado</h4>
-          <% ['A4','A3'].forEach(prod => {
-               const n = notificaciones[prod];
-               if (n.tipo==='presto') { %>
-            <p class="aviso presto"><%= prod %> — Prestó <strong><%= n.diff %></strong></p>
-          <% } else if (n.tipo==='recupero') { %>
-            <p class="aviso recupero"><%= prod %> — Recuperó <strong><%= n.diff %></strong></p>
-          <% } else { %>
-            <p><%= prod %> — Sin diferencias</p>
-          <% }}); %>
-        </div>
-        <div class="cobranza-rend">
-          <h3>Cobranza cargada</h3>
-          <ul>
-            <% rendiciones.forEach(item => { %>
-              <li><%= item.descripcion %>: <strong>$<%= Number(item.importe).toFixed(2) %></strong></li>
-            <% }); %>
-            <% if (!rendiciones.length) { %>
-              <li><em>No hay rendiciones.</em></li>
-            <% } %>
-            <li class="total-rend"><strong>Total:</strong> $<%= totalRendiciones.toFixed(2) %></li>
-            <% 
-              const cobA4 = (totalA4Contado + totalA4CuentaCorriente) * priceA4;
-              const cobA3 = (totalA3Contado + totalA3CuentaCorriente) * priceA3;
-              const cobranzaCalc = cobA4 + cobA3;
-              const diferencia = totalRendiciones - cobranzaCalc;
-            %>
-            <li class="diferencia-rend"><strong>Diferencia calculada:</strong> $<%= diferencia.toFixed(2) %></li>
-          </ul>
-        </div>
-      </div>
+<!-- Movimientos y Cobranza lado a lado -->
+<div class="resumen-flex">
+  <div class="resumen-movs">
+    <h3>Movimientos de camión</h3>
+    <ul>
+      <li>
+        Carga A4: 
+        <strong><%= resumenMovs.carga.A4.values.join(' + ') %> = <%= resumenMovs.carga.A4.sum %></strong>
+      </li>
+      <li>
+        Carga A3: 
+        <strong><%= resumenMovs.carga.A3.values.join(' + ') %> = <%= resumenMovs.carga.A3.sum %></strong>
+      </li>
+      <li>Vacios A4: <strong><%= resumenMovs.vacio.A4.sum %></strong></li>
+      <li>Vacios A3: <strong><%= resumenMovs.vacio.A3.sum %></strong></li>
+      <li>Llenos A4: <strong><%= resumenMovs.lleno.A4.sum %></strong></li>
+      <li>Llenos A3: <strong><%= resumenMovs.lleno.A3.sum %></strong></li>
+    </ul>
+
+    <% ['A4','A3'].forEach(prod => {
+         const cargados = resumenMovs.carga[prod].sum;
+         const llenos = resumenMovs.lleno[prod].sum;
+         const vendidos = prod === 'A4' ? totalA4Vendidos : totalA3Vendidos;
+         const diferencia = cargados - llenos;
+    %>
+      <p class="aviso <%= diferencia !== vendidos ? 'presto' : '' %>">
+        <strong><%= prod %>:</strong>
+        Carga - Llenos = <%= cargados %> - <%= llenos %> = <strong><%= diferencia %></strong><br>
+        Vendidos: <strong><%= vendidos %></strong>
+        <% if (diferencia !== vendidos) { %>
+          <br><span>⚠ Diferencia entre carga-llenos y venta para <%= prod %></span>
+        <% } %>
+      </p>
+    <% }); %>
+
+    <h4>Estado</h4>
+    <% ['A4','A3'].forEach(prod => {
+         const n = notificaciones[prod];
+         if (n.tipo==='presto') { %>
+      <p class="aviso presto"><%= prod %> — Prestó <strong><%= n.diff %></strong></p>
+    <% } else if (n.tipo==='recupero') { %>
+      <p class="aviso recupero"><%= prod %> — Recuperó <strong><%= n.diff %></strong></p>
+    <% } else { %>
+      <p><%= prod %> — Sin diferencias</p>
+    <% }}); %>
+  </div>
+
+  <div class="cobranza-rend">
+    <h3>Cobranza cargada</h3>
+    <ul>
+      <% rendiciones.forEach(item => { %>
+        <li><%= item.descripcion %>: <strong>$<%= Number(item.importe).toFixed(2) %></strong></li>
+      <% }); %>
+      <% if (!rendiciones.length) { %>
+        <li><em>No hay rendiciones.</em></li>
+      <% } %>
+      <li class="total-rend"><strong>Total:</strong> $<%= totalRendiciones.toFixed(2) %></li>
+      <% 
+        const cobA4 = (totalA4Contado + totalA4CuentaCorriente) * priceA4;
+        const cobA3 = (totalA3Contado + totalA3CuentaCorriente) * priceA3;
+        const cobranzaCalc = cobA4 + cobA3;
+        const diferencia = totalRendiciones - cobranzaCalc;
+      %>
+      <li class="diferencia-rend"><strong>Diferencia calculada:</strong> $<%= diferencia.toFixed(2) %></li>
+    </ul>
+  </div>
+</div>
 
       <button onclick="generarPDF()">Descargar PDF</button>
       <button type="button" onclick="mostrarErrores()">Ver Errores</button>
