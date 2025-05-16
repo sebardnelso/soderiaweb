@@ -1,3 +1,4 @@
+
 // app.js
 const express = require('express');
 const path = require('path');
@@ -861,6 +862,378 @@ app.post('/clientes/actualizarCampo', async (req, res) => {
   } catch (err) {
     console.error('Error en /clientes/actualizarCampo:', err);
     res.sendStatus(500);
+  }
+});
+
+// ----------------------------
+// RUTAS TAPAS Y BIDONES
+// ----------------------------
+
+// GET /tapasbidones — listado, filtro y formulario
+app.get('/tapasbidones', async (req, res) => {
+  try {
+    const fechaDesde = req.query.fechaDesde || null;
+    const fechaHasta = req.query.fechaHasta || null;
+    const cod_rep = parseInt(req.query.cod_rep) || 0;
+    const cod_zona = parseInt(req.query.cod_zona) || 0;
+
+    const [stocks] = await req.db.query(
+      `SELECT id, fecha, tapas, bidon_a3, bidon_a4, bases
+       FROM soda_stock
+       ORDER BY fecha DESC
+       LIMIT 1`
+    );
+
+    let reportCount = 0;
+    let totalBidonesBajados = 0;
+    let vaciosA3 = 0;
+    let vaciosA4 = 0;
+    let bidonesA3 = 0;
+    let bidonesA4 = 0;
+    let resumenCardes = [];
+
+    let llenosA3 = 0;
+    let llenosA4 = 0;
+    let totalMovA3 = 0;
+    let totalMovA4 = 0;
+
+    if (fechaDesde && fechaHasta) {
+      // Tapas vendidas (sin duplicados)
+      const [[{ totalVenta }]] = await req.db.query(
+        `SELECT SUM(venta) AS totalVenta
+         FROM (
+           SELECT MAX(venta) AS venta
+           FROM soda_hoja_completa
+           WHERE fecha BETWEEN ? AND ?
+           GROUP BY cod_rep, cod_cliente, cod_prod, fecha
+         ) AS sub`,
+        [fechaDesde, fechaHasta]
+      );
+      reportCount = totalVenta || 0;
+
+      // Bidones bajados (sin duplicados)
+      const [[{ totalBajados }]] = await req.db.query(
+        `SELECT SUM(bidones_bajados) AS totalBajados
+         FROM (
+           SELECT MAX(bidones_bajados) AS bidones_bajados
+           FROM soda_hoja_completa
+           WHERE fecha BETWEEN ? AND ?
+           GROUP BY cod_rep, cod_cliente, cod_prod, fecha
+         ) AS sub`,
+        [fechaDesde, fechaHasta]
+      );
+      totalBidonesBajados = totalBajados || 0;
+
+      // Bidones bajados por producto
+      const [desglose] = await req.db.query(
+        `SELECT cod_prod, SUM(bidones_bajados) AS total
+         FROM (
+           SELECT cod_prod, MAX(bidones_bajados) AS bidones_bajados
+           FROM soda_hoja_completa
+           WHERE fecha BETWEEN ? AND ?
+           GROUP BY cod_rep, cod_cliente, cod_prod, fecha
+         ) AS sub
+         GROUP BY cod_prod`,
+        [fechaDesde, fechaHasta]
+      );
+
+      desglose.forEach(row => {
+        if (row.cod_prod === 'A3') bidonesA3 = row.total || 0;
+        if (row.cod_prod === 'A4') bidonesA4 = row.total || 0;
+      });
+
+      // Vacíos por producto
+      const [vacios] = await req.db.query(
+        `SELECT cod_prod, SUM(cantidad) AS total
+         FROM soda_cardes
+         WHERE movimiento = 'vacio' AND fecha BETWEEN ? AND ?
+         GROUP BY cod_prod`,
+        [fechaDesde, fechaHasta]
+      );
+
+      vacios.forEach(row => {
+        if (row.cod_prod === 'A3') vaciosA3 = row.total || 0;
+        if (row.cod_prod === 'A4') vaciosA4 = row.total || 0;
+      });
+
+      // Llenos por producto
+      const [llenos] = await req.db.query(
+        `SELECT cod_prod, SUM(cantidad) AS total
+         FROM soda_cardes
+         WHERE movimiento = 'lleno' AND fecha BETWEEN ? AND ?
+         GROUP BY cod_prod`,
+        [fechaDesde, fechaHasta]
+      );
+
+      llenos.forEach(row => {
+        if (row.cod_prod === 'A3') llenosA3 = row.total || 0;
+        if (row.cod_prod === 'A4') llenosA4 = row.total || 0;
+      });
+
+      // Sumas combinadas
+      totalMovA3 = Number(vaciosA3 || 0) + Number(llenosA3 || 0);
+      totalMovA4 = Number(vaciosA4 || 0) + Number(llenosA4 || 0);
+
+      // Resumen Lleno + Vacío
+      let condiciones = [`fecha BETWEEN ? AND ?`, `movimiento IN ('lleno', 'vacio')`];
+      let params = [fechaDesde, fechaHasta];
+
+      if (cod_rep > 0) {
+        condiciones.push(`cod_rep = ?`);
+        params.push(cod_rep);
+        if (cod_zona > 0) {
+          condiciones.push(`cod_zona = ?`);
+          params.push(cod_zona);
+        }
+      }
+
+      const whereClause = condiciones.join(' AND ');
+      const [resumen] = await req.db.query(
+        `SELECT fecha, cod_rep, cod_zona, cod_prod, SUM(cantidad) AS total_mov
+         FROM soda_cardes
+         WHERE ${whereClause}
+         GROUP BY fecha, cod_rep, cod_zona, cod_prod
+         ORDER BY fecha, cod_rep, cod_zona, cod_prod`,
+        params
+      );
+      resumenCardes = resumen;
+    }
+
+    res.render('tapasbidones', {
+      title: 'Stock de Tapas y Bidones',
+      stocks,
+      editedStock: null,
+      formAction: '/tapasbidones',
+      fechaDesde,
+      fechaHasta,
+      cod_rep,
+      cod_zona,
+      reportCount,
+      totalBidonesBajados,
+      bidonesA3,
+      bidonesA4,
+      vaciosA3,
+      vaciosA4,
+      llenosA3,
+      llenosA4,
+      totalMovA3,
+      totalMovA4,
+      resumenCardes
+    });
+
+  } catch (err) {
+    console.error('Error en GET /tapasbidones:', err);
+    res.status(500).send('Error en el servidor.');
+  }
+});
+
+
+
+
+// POST /tapasbidones — agregar o modificar según id
+app.post('/tapasbidones', async (req, res) => {
+  try {
+    const { id, fecha, tapas, bidon_a3, bidon_a4, bases } = req.body;
+    if (id) {
+      // modificar
+      await req.db.query(
+        `UPDATE soda_stock
+         SET fecha = ?, tapas = ?, bidon_a3 = ?, bidon_a4 = ?, bases = ?
+         WHERE id = ?`,
+        [fecha, tapas, bidon_a3, bidon_a4, bases, id]
+      );
+    } else {
+      // agregar
+      await req.db.query(
+        `INSERT INTO soda_stock (fecha, tapas, bidon_a3, bidon_a4, bases)
+         VALUES (?, ?, ?, ?, ?)`,
+        [fecha, tapas, bidon_a3, bidon_a4, bases]
+      );
+    }
+    res.redirect('/tapasbidones');
+  } catch (err) {
+    console.error('Error en POST /tapasbidones:', err);
+    res.status(500).send('Error en el servidor.');
+  }
+});
+
+// POST /tapasbidones/delete/:id — eliminar registro
+app.post('/tapasbidones/delete/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await req.db.query(
+      `DELETE FROM soda_stock WHERE id = ?`,
+      [id]
+    );
+    res.redirect('/tapasbidones');
+  } catch (err) {
+    console.error('Error en POST /tapasbidones/delete/:id:', err);
+    res.status(500).send('Error en el servidor.');
+  }
+});
+
+// GET /tapasbidones/edit/:id — cargar un registro para modificar
+// GET /tapasbidones/edit/:id — cargar un registro para modificar
+app.get('/tapasbidones/edit/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Obtener el stock a editar
+    const [rows] = await req.db.query(
+      `SELECT id, fecha, tapas, bidon_a3, bidon_a4, bases 
+       FROM soda_stock 
+       WHERE id = ?`,
+      [id]
+    );
+
+    if (!rows.length) return res.redirect('/tapasbidones');
+
+    const editedStock = rows[0];
+
+    // Traer también el stock (aunque es uno solo)
+    const [stocks] = await req.db.query(
+      `SELECT id, fecha, tapas, bidon_a3, bidon_a4, bases 
+       FROM soda_stock 
+       ORDER BY fecha DESC`
+    );
+
+    res.render('tapasbidones', {
+      title: 'Editar Stock',
+      stocks,
+      editedStock,
+      formAction: '/tapasbidones',
+      fechaDesde: '',     // evitar ReferenceError
+      fechaHasta: '',     // evitar ReferenceError
+      reportCount: null   // para que no aparezca el bloque informe
+    });
+
+  } catch (err) {
+    console.error('Error en GET /tapasbidones/edit/:id:', err);
+    res.status(500).send('Error en el servidor.');
+  }
+});
+
+// backend/server.js (o tu archivo de rutas)
+// Devuelve datos de header para un cliente dado
+app.get('/api/cliente-header', async (req, res) => {
+  const cod_cliente = req.query.cod_cliente;
+  if (!cod_cliente) {
+    return res.json({ success: false, message: 'Falta el parámetro cod_cliente' });
+  }
+
+  try {
+    const [[row]] = await req.db.query(
+      `SELECT nom_cliente,
+              domicilio,
+              saldiA3,
+              saldiA4
+       FROM soda_hoja_header
+       WHERE cod_cliente = ?`,
+      [cod_cliente]
+    );
+
+    if (!row) {
+      return res.json({ success: false, message: 'Cliente no encontrado' });
+    }
+
+    res.json({
+      success:     true,
+      nom_cliente: row.nom_cliente,
+      domicilio:   row.domicilio,
+      saldiA3:     row.saldiA3,
+      saldiA4:     row.saldiA4
+    });
+  } catch (err) {
+    console.error('Error en GET /api/cliente-header:', err);
+    res.status(500).json({ success: false, message: 'Error en servidor' });
+  }
+});
+
+// backend/server.js (o tu archivo de rutas)
+
+// GET: mostrar formulario y listado de ventas en planta
+app.get('/venta-planta', async (req, res) => {
+  try {
+    // Obtener todas las ventas en planta (cod_rep=100, cod_zona=100)
+    const [ventasPlanta] = await req.db.query(
+      `SELECT fecha, cod_cliente, cod_prod,
+              venta AS cantidad,
+              cobrado_ctdo AS pago_efectivo,
+              cobrado_ccte AS pago_ctacte,
+              bidones_bajados AS bidones_devolvio,
+              debe
+       FROM soda_hoja_completa
+       WHERE cod_rep = 100 AND cod_zona = 100
+       ORDER BY fecha DESC`
+    );
+    res.render('ventaplanta', { ventasPlanta });
+  } catch (err) {
+    console.error('Error en GET /venta-planta:', err);
+    res.status(500).send('Error en el servidor.');
+  }
+});
+
+// POST: guardar nueva venta en planta y actualizar saldos
+app.post('/venta-planta', async (req, res) => {
+  const {
+    cod_cliente,
+    cod_prod,
+    cantidad,
+    bidones_devolvio,
+    pago_efectivo,
+    pago_ctacte,
+    fecha
+  } = req.body;
+
+  // Valores fijos para planta
+  const cod_rep  = 100;
+  const cod_zona = 100;
+
+  try {
+    await req.db.query('START TRANSACTION');
+
+    // 1) Obtener saldo actual del header antes de la operación
+    const field = cod_prod === 'A4' ? 'saldiA4' : 'saldiA3';
+    const [[current]] = await req.db.query(
+      `SELECT ${field} AS currentSaldo
+       FROM soda_hoja_header
+       WHERE cod_cliente = ?`,
+      [cod_cliente]
+    );
+    const currentSaldo = Number(current.currentSaldo || 0);
+
+    // 2) Calcular nuevo saldo sólo si hubo cuenta corriente
+    const decremento = Number(pago_ctacte || 0);
+    const newSaldo = currentSaldo - decremento;
+
+    // 3) Insertar en soda_hoja_completa incluyendo el campo 'debe'
+    await req.db.query(
+      `INSERT INTO soda_hoja_completa
+         (cod_rep, cod_zona, cod_cliente, cod_prod, fecha,
+          venta, bidones_bajados, cobrado_ctdo, cobrado_ccte, debe)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [cod_rep, cod_zona, cod_cliente, cod_prod, fecha,
+       cantidad, bidones_devolvio, pago_efectivo, pago_ctacte, newSaldo]
+    );
+
+    // 4) Actualizar saldo en soda_hoja_header sólo si pago_ctacte > 0
+    if (decremento > 0) {
+      await req.db.query(
+        `UPDATE soda_hoja_header
+         SET ${field} = ?
+         WHERE cod_cliente = ?`,
+        [newSaldo, cod_cliente]
+      );
+    }
+
+    await req.db.query('COMMIT');
+
+    // 5) Redirigir para recargar listado con la nueva venta
+    res.redirect('/venta-planta');
+  } catch (err) {
+    await req.db.query('ROLLBACK');
+    console.error('Error en POST /venta-planta:', err);
+    res.status(500).send('Error guardando la venta.');
   }
 });
 
