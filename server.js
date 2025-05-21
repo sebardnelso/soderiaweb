@@ -1,4 +1,3 @@
-
 // app.js
 const express = require('express');
 const path = require('path');
@@ -324,15 +323,16 @@ app.get('/hojaruta', async (req, res) => {
     }
 
     // Buscar los saldos iniciales por cliente y producto según el primer día encontrado
-    const [saldosIniciales] = await req.db.query(`
-      SELECT 
+    const [saldosIniciales] = await req.db.query(
+      `SELECT 
         cod_cliente, cod_prod, MIN(STR_TO_DATE(fecha, '%Y-%m-%d')) AS fecha_min
       FROM soda_hoja_completa
       WHERE cod_rep = ? AND cod_zona = ?
         AND MONTH(STR_TO_DATE(fecha, '%Y-%m-%d')) BETWEEN ? AND ?
         AND YEAR(STR_TO_DATE(fecha, '%Y-%m-%d')) = ?
-      GROUP BY cod_cliente, cod_prod
-    `, [cod_rep, cod_zona, mes_desde, mes_hasta, anio]);
+      GROUP BY cod_cliente, cod_prod`,
+      [cod_rep, cod_zona, mes_desde, mes_hasta, anio]
+    );
 
     const saldosMap = {};
     for (const s of saldosIniciales) {
@@ -379,15 +379,16 @@ app.get('/hojaruta', async (req, res) => {
         hh.nom_cliente,
         hc.cod_prod,
         mes,
-        semana;
-      `,
+        semana`,
       [mes_desde, mes_hasta, anio, cod_rep, cod_zona]
     );
 
+    // 🔧 CAMBIO: usar clave tipo "4-1"
     const pivot = {};
     rows.forEach(r => {
       const key = `${r.cod_cliente}-${r.cod_prod}`;
-      const semanaIndex = (r.mes - mes_desde) * 5 + r.semana;
+      const semKey = `${r.mes}-${r.semana}`;
+
       if (!pivot[key]) {
         pivot[key] = {
           cod_cliente: r.cod_cliente,
@@ -398,8 +399,9 @@ app.get('/hojaruta', async (req, res) => {
       }
 
       const saldoInicial = saldosMap[key] || 0;
-      pivot[key].semanas[semanaIndex] = {
-        saldo_inicial: semanaIndex === 1 ? saldoInicial : undefined,
+
+      pivot[key].semanas[semKey] = {
+        saldo_inicial: undefined, // se calcula después
         venta:         Number(r.venta) || 0,
         cobrado_ctdo:  Number(r.cobrado_ctdo) || 0,
         cobrado_ccte:  Number(r.cobrado_ccte) || 0,
@@ -407,15 +409,22 @@ app.get('/hojaruta', async (req, res) => {
       };
     });
 
+    // Calcular resultados
     Object.values(pivot).forEach(cli => {
       const semanas = cli.semanas;
-      let acc = semanas[1]?.saldo_inicial || 0;
-      for (let w = 1; w <= (mes_hasta - mes_desde + 1) * 5; w++) {
-        const s = semanas[w] || { venta: 0, cobrado_ctdo: 0, cobrado_ccte: 0 };
-        if (!semanas[w]) semanas[w] = s;
-        s.resultado = acc + s.venta - s.cobrado_ctdo - s.cobrado_ccte;
-        acc = s.resultado;
-      }
+      const claves = Object.keys(semanas).sort((a, b) => {
+        const [ma, wa] = a.split('-').map(Number);
+        const [mb, wb] = b.split('-').map(Number);
+        return ma === mb ? wa - wb : ma - mb;
+      });
+
+      let saldo = saldosMap[`${cli.cod_cliente}-${cli.cod_prod}`] || 0;
+      claves.forEach(k => {
+        const s = semanas[k];
+        s.saldo_inicial = saldo;
+        s.resultado = saldo + s.venta - s.cobrado_ctdo - s.cobrado_ccte;
+        saldo = s.resultado;
+      });
     });
 
     res.render('hojaruta', {
@@ -428,6 +437,7 @@ app.get('/hojaruta', async (req, res) => {
     res.status(500).send('Error en el servidor');
   }
 });
+
 
 
 // RUTA CORREGIDA: /hojaruta/cliente
@@ -595,6 +605,7 @@ app.post('/cobranza/modificar', async (req, res) => {
 // app.js o server.js
 
 // GET /liquidaciones — muestra formulario y, si vienen parámetros, los resultados
+// BACKEND COMPLETO
 app.get('/liquidaciones', async (req, res) => {
   try {
     const { cod_rep, fecha_desde, fecha_hasta } = req.query;
@@ -604,89 +615,170 @@ app.get('/liquidaciones', async (req, res) => {
       fecha_desde: fecha_desde || '',
       fecha_hasta: fecha_hasta || ''
     };
-    console.log('PARAMETROS:', parametros);
 
     let rendiciones = [];
     let ventas = [];
-    let totalLiquido = 0;
     let totalBidones = 0;
+    let diferencias = [];
+    let resumenPorProducto = {
+      A3: { contado: 0, ccte: 0 },
+      A4: { contado: 0, ccte: 0 }
+    };
+
+    let totalCobrado = 0;
+    let subtotal20 = 0;
+    let totalAdelantos = 0;
+    let totalDiferencias = 0;
+    let totalFinal = 0;
 
     if (cod_rep !== undefined && fecha_desde && fecha_hasta) {
-      // --------------------
-      // 1) Rendiciones (solo si cod_rep != 0)
-      if (cod_rep !== '0') {
+      // Adelantos
+      if (cod_rep === '0') {
         [rendiciones] = await req.db.query(
-          `SELECT 
-             r.fecha, 
-             rub.descripcion, 
-             r.importe 
+          `SELECT r.fecha, rub.descripcion, r.importe 
            FROM soda_rendiciones r
-           JOIN soda_rubros_rendiciones rub 
-             ON r.cod_gasto = rub.cod
-           WHERE r.cod_rep = ?
-             AND r.cod_gasto = 12
+           JOIN soda_rubros_rendiciones rub ON r.cod_gasto = rub.cod
+           WHERE r.cod_gasto = 12
+             AND r.fecha BETWEEN ? AND ?
+           ORDER BY r.fecha`,
+          [fecha_desde, fecha_hasta]
+        );
+      } else {
+        [rendiciones] = await req.db.query(
+          `SELECT r.fecha, rub.descripcion, r.importe 
+           FROM soda_rendiciones r
+           JOIN soda_rubros_rendiciones rub ON r.cod_gasto = rub.cod
+           WHERE r.cod_rep = ? AND r.cod_gasto = 12
              AND r.fecha BETWEEN ? AND ?
            ORDER BY r.fecha`,
           [cod_rep, fecha_desde, fecha_hasta]
         );
-      } else {
-        // Si cod_rep = 0, no mostrar rendiciones individuales
-        rendiciones = [];
       }
 
-      const totalAdelantos = rendiciones
-        .reduce((sum, r) => sum + Number(r.importe), 0);
+      totalAdelantos = rendiciones.reduce((sum, r) => sum + Number(r.importe), 0);
 
-      // --------------------
-      // 2) Ventas por todos o uno
       const condition = cod_rep === '0' ? '1=1' : 'hc.cod_rep = ?';
       const params = cod_rep === '0'
         ? [fecha_desde, fecha_hasta]
         : [cod_rep, fecha_desde, fecha_hasta];
 
-      let [rawVentas] = await req.db.query(
-        `SELECT
-           hc.fecha,
-           hc.cod_prod,
-           SUM(hc.venta)               AS cantidad,
-           SUM(hc.cobrado_ctdo)        AS cobrado_ctdo,
-           SUM(hc.cobrado_ccte)        AS cobrado_ccte,
-           SUM(hc.bidones_bajados)     AS bidones_vendidos,
-           SUM(hc.cobrado_ctdo * p.precio) AS monto_ctdo,
-           SUM(hc.cobrado_ccte * p.precio) AS monto_ccte
+      const [rawData] = await req.db.query(
+        `SELECT hc.fecha, hc.cod_prod, hc.cod_rep, hc.cod_zona, hc.cod_cliente,
+                hc.venta, hc.cobrado_ctdo, hc.cobrado_ccte,
+                hc.bidones_bajados,
+                (hc.cobrado_ctdo * p.precio) AS monto_ctdo,
+                (hc.cobrado_ccte * p.precio) AS monto_ccte
          FROM soda_hoja_completa hc
          JOIN soda_precios p ON hc.cod_prod = p.cod_prod
-         WHERE ${condition}
-           AND hc.fecha BETWEEN ? AND ?
-         GROUP BY hc.fecha, hc.cod_prod
+         WHERE ${condition} AND hc.fecha BETWEEN ? AND ?
          ORDER BY hc.fecha, hc.cod_prod`,
         params
       );
 
-      ventas = rawVentas.map(v => ({
-        fecha:            v.fecha,
-        cod_prod:         v.cod_prod,
-        cantidad:         Number(v.cantidad),
-        cobrado_ctdo:     Number(v.cobrado_ctdo),
-        cobrado_ccte:     Number(v.cobrado_ccte),
-        bidones_vendidos: Number(v.bidones_vendidos),
-        monto_ctdo:       Number(v.monto_ctdo),
-        monto_ccte:       Number(v.monto_ccte)
-      }));
+      const vistos = new Set();
+      const sinDuplicados = [];
 
-      // Sumar montos y bidones
-      const sumaMontos = ventas.reduce((sum, v) => sum + v.monto_ctdo + v.monto_ccte, 0);
-      totalBidones = ventas.reduce((sum, v) => sum + v.bidones_vendidos, 0);
-      totalLiquido = sumaMontos - totalAdelantos;
+      rawData.forEach(r => {
+        const key = `${r.cod_rep}_${r.cod_prod}_${r.cod_zona}_${r.cod_cliente}_${r.fecha.toISOString().slice(0,10)}`;
+        if (!vistos.has(key)) {
+          vistos.add(key);
+          sinDuplicados.push(r);
+        }
+      });
+
+      const agrupadas = {};
+
+      sinDuplicados.forEach(v => {
+        const key = `${v.fecha.toISOString().slice(0,10)}_${v.cod_prod}`;
+        if (!agrupadas[key]) {
+          agrupadas[key] = {
+            fecha: v.fecha,
+            cod_prod: v.cod_prod,
+            cantidad: 0,
+            cobrado_ctdo: 0,
+            cobrado_ccte: 0,
+            bidones_vendidos: 0,
+            monto_ctdo: 0,
+            monto_ccte: 0
+          };
+        }
+        agrupadas[key].cantidad         += Number(v.venta);
+        agrupadas[key].cobrado_ctdo     += Number(v.cobrado_ctdo);
+        agrupadas[key].cobrado_ccte     += Number(v.cobrado_ccte);
+        agrupadas[key].bidones_vendidos += Number(v.bidones_bajados);
+        agrupadas[key].monto_ctdo       += Number(v.monto_ctdo);
+        agrupadas[key].monto_ccte       += Number(v.monto_ccte);
+      });
+
+      ventas = Object.values(agrupadas);
+
+      totalCobrado = ventas.reduce((sum, v) => sum + v.monto_ctdo + v.monto_ccte, 0);
+      subtotal20 = totalCobrado * 0.2;
+      totalBidones = ventas.reduce((sum, v) => sum + v.cantidad, 0); // ahora suma venta, no bidones
+
+      // Rendidas por día
+      let rendidasPorDia = [];
+
+      if (cod_rep === '0') {
+        [rendidasPorDia] = await req.db.query(
+          `SELECT fecha, SUM(importe) AS rendido
+           FROM soda_rendiciones
+           WHERE fecha BETWEEN ? AND ?
+           GROUP BY fecha`,
+          [fecha_desde, fecha_hasta]
+        );
+      } else {
+        [rendidasPorDia] = await req.db.query(
+          `SELECT fecha, SUM(importe) AS rendido
+           FROM soda_rendiciones
+           WHERE cod_rep = ? AND fecha BETWEEN ? AND ?
+           GROUP BY fecha`,
+          [cod_rep, fecha_desde, fecha_hasta]
+        );
+      }
+
+      const mapaRendidas = {};
+      rendidasPorDia.forEach(r => {
+        mapaRendidas[r.fecha.toISOString().slice(0, 10)] = Number(r.rendido);
+      });
+
+      const diferenciaPorDia = {};
+      ventas.forEach(v => {
+        const fechaKey = v.fecha.toISOString().slice(0, 10);
+        const totalDia = v.monto_ctdo + v.monto_ccte;
+        if (!diferenciaPorDia[fechaKey]) diferenciaPorDia[fechaKey] = 0;
+        diferenciaPorDia[fechaKey] += totalDia;
+      });
+
+      diferencias = Object.entries(diferenciaPorDia).map(([fecha, cobrado]) => {
+        const rendido = mapaRendidas[fecha] || 0;
+        return { fecha, cobrado, rendido, diferencia: rendido - cobrado };
+      });
+
+      totalDiferencias = diferencias.reduce((sum, d) => sum + d.diferencia, 0);
+      totalFinal = subtotal20 - totalAdelantos + totalDiferencias;
+
+      ventas.forEach(v => {
+        if (v.cod_prod === 'A3' || v.cod_prod === 'A4') {
+          resumenPorProducto[v.cod_prod].contado += v.cobrado_ctdo;
+          resumenPorProducto[v.cod_prod].ccte    += v.cobrado_ccte;
+        }
+      });
     }
 
     res.render('liquidaciones', {
-      title:        'Liquidaciones',
+      title: 'Liquidaciones',
       parametros,
       rendiciones,
       ventas,
-      totalLiquido,
-      totalBidones
+      diferencias,
+      resumenPorProducto,
+      totalBidones,
+      totalCobrado,
+      subtotal20,
+      totalAdelantos,
+      totalDiferencias,
+      totalFinal
     });
 
   } catch (err) {
@@ -694,6 +786,8 @@ app.get('/liquidaciones', async (req, res) => {
     res.status(500).send('Error en el servidor.');
   }
 });
+
+
 
 app.get('/clientes', async (req, res) => {
   try {
@@ -880,8 +974,9 @@ app.get('/tapasbidones', async (req, res) => {
     const [stocks] = await req.db.query(
       `SELECT id, fecha, tapas, bidon_a3, bidon_a4, bases
        FROM soda_stock
-       ORDER BY fecha DESC
-       LIMIT 1`
+       WHERE fecha BETWEEN ? AND ?
+       ORDER BY fecha`,
+      [fechaDesde, fechaHasta]
     );
 
     let reportCount = 0;
@@ -891,14 +986,21 @@ app.get('/tapasbidones', async (req, res) => {
     let bidonesA3 = 0;
     let bidonesA4 = 0;
     let resumenCardes = [];
+    let diferenciasPorDia = [];
 
     let llenosA3 = 0;
     let llenosA4 = 0;
     let totalMovA3 = 0;
     let totalMovA4 = 0;
+    let diferenciasTotales = null;
+
+    let totalDiferenciaA3Pos = 0;
+    let totalDiferenciaA3Neg = 0;
+    let totalDiferenciaA4Pos = 0;
+    let totalDiferenciaA4Neg = 0;
+    let pinchados = 0;
 
     if (fechaDesde && fechaHasta) {
-      // Tapas vendidas (sin duplicados)
       const [[{ totalVenta }]] = await req.db.query(
         `SELECT SUM(venta) AS totalVenta
          FROM (
@@ -911,7 +1013,6 @@ app.get('/tapasbidones', async (req, res) => {
       );
       reportCount = totalVenta || 0;
 
-      // Bidones bajados (sin duplicados)
       const [[{ totalBajados }]] = await req.db.query(
         `SELECT SUM(bidones_bajados) AS totalBajados
          FROM (
@@ -924,7 +1025,6 @@ app.get('/tapasbidones', async (req, res) => {
       );
       totalBidonesBajados = totalBajados || 0;
 
-      // Bidones bajados por producto
       const [desglose] = await req.db.query(
         `SELECT cod_prod, SUM(bidones_bajados) AS total
          FROM (
@@ -942,61 +1042,153 @@ app.get('/tapasbidones', async (req, res) => {
         if (row.cod_prod === 'A4') bidonesA4 = row.total || 0;
       });
 
-      // Vacíos por producto
-      const [vacios] = await req.db.query(
-        `SELECT cod_prod, SUM(cantidad) AS total
-         FROM soda_cardes
-         WHERE movimiento = 'vacio' AND fecha BETWEEN ? AND ?
-         GROUP BY cod_prod`,
-        [fechaDesde, fechaHasta]
-      );
-
-      vacios.forEach(row => {
-        if (row.cod_prod === 'A3') vaciosA3 = row.total || 0;
-        if (row.cod_prod === 'A4') vaciosA4 = row.total || 0;
-      });
-
-      // Llenos por producto
-      const [llenos] = await req.db.query(
-        `SELECT cod_prod, SUM(cantidad) AS total
-         FROM soda_cardes
-         WHERE movimiento = 'lleno' AND fecha BETWEEN ? AND ?
-         GROUP BY cod_prod`,
-        [fechaDesde, fechaHasta]
-      );
-
-      llenos.forEach(row => {
-        if (row.cod_prod === 'A3') llenosA3 = row.total || 0;
-        if (row.cod_prod === 'A4') llenosA4 = row.total || 0;
-      });
-
-      // Sumas combinadas
-      totalMovA3 = Number(vaciosA3 || 0) + Number(llenosA3 || 0);
-      totalMovA4 = Number(vaciosA4 || 0) + Number(llenosA4 || 0);
-
-      // Resumen Lleno + Vacío
-      let condiciones = [`fecha BETWEEN ? AND ?`, `movimiento IN ('lleno', 'vacio')`];
-      let params = [fechaDesde, fechaHasta];
+      const condiciones = [`fecha BETWEEN ? AND ?`];
+      const params = [fechaDesde, fechaHasta];
 
       if (cod_rep > 0) {
         condiciones.push(`cod_rep = ?`);
         params.push(cod_rep);
-        if (cod_zona > 0) {
-          condiciones.push(`cod_zona = ?`);
-          params.push(cod_zona);
-        }
+      }
+      if (cod_zona > 0) {
+        condiciones.push(`cod_zona = ?`);
+        params.push(cod_zona);
       }
 
       const whereClause = condiciones.join(' AND ');
-      const [resumen] = await req.db.query(
-        `SELECT fecha, cod_rep, cod_zona, cod_prod, SUM(cantidad) AS total_mov
+
+      const [cardes] = await req.db.query(
+        `SELECT fecha, cod_rep, cod_zona, cod_prod, movimiento, SUM(cantidad) AS total
          FROM soda_cardes
          WHERE ${whereClause}
-         GROUP BY fecha, cod_rep, cod_zona, cod_prod
-         ORDER BY fecha, cod_rep, cod_zona, cod_prod`,
+         GROUP BY fecha, cod_rep, cod_zona, cod_prod, movimiento
+         ORDER BY fecha`,
         params
       );
-      resumenCardes = resumen;
+
+      const datosPorDia = {};
+
+      for (let row of cardes) {
+        const clave = `${row.fecha}_${row.cod_rep}_${row.cod_zona}_${row.cod_prod}`;
+        if (!datosPorDia[clave]) {
+          datosPorDia[clave] = {
+            fecha: row.fecha,
+            cod_rep: row.cod_rep,
+            cod_zona: row.cod_zona,
+            cod_prod: row.cod_prod,
+            lleno: 0,
+            vacio: 0,
+            carga: 0
+          };
+        }
+
+        if (row.movimiento === 'lleno') datosPorDia[clave].lleno = Number(row.total);
+        if (row.movimiento === 'vacio') datosPorDia[clave].vacio = Number(row.total);
+        if (row.movimiento === 'carga') datosPorDia[clave].carga = Number(row.total);
+      }
+
+      const agrupadas = {};
+
+      for (let clave in datosPorDia) {
+        const d = datosPorDia[clave];
+        const total = d.lleno + d.vacio;
+        const dif = total - d.carga;
+
+        resumenCardes.push({
+          fecha: d.fecha,
+          cod_rep: d.cod_rep,
+          cod_zona: d.cod_zona,
+          cod_prod: d.cod_prod,
+          lleno: d.lleno,
+          vacio: d.vacio,
+          carga: d.carga,
+          total_mov: total,
+          diferencia: dif
+        });
+
+        if (d.cod_prod === 'A3') {
+          if (dif > 0) totalDiferenciaA3Pos += dif;
+          if (dif < 0) totalDiferenciaA3Neg += dif;
+        }
+        if (d.cod_prod === 'A4') {
+          if (dif > 0) totalDiferenciaA4Pos += dif;
+          if (dif < 0) totalDiferenciaA4Neg += dif;
+        }
+
+        const fechaKey = d.fecha;
+        if (!agrupadas[fechaKey]) agrupadas[fechaKey] = { fecha: d.fecha, A3: 0, A4: 0 };
+        if (d.cod_prod === 'A3' && dif !== 0) agrupadas[fechaKey].A3 = dif;
+        if (d.cod_prod === 'A4' && dif !== 0) agrupadas[fechaKey].A4 = dif;
+      }
+
+      diferenciasPorDia = Object.values(agrupadas).filter(d => d.A3 !== 0 || d.A4 !== 0);
+
+      const [[{ pinchados: pinch = 0 } = {}]] = await req.db.query(
+        `SELECT SUM(cantidad) AS pinchados
+         FROM soda_cardes
+         WHERE movimiento = 'pinchados' AND ${whereClause}`,
+        params
+      );
+      pinchados = pinch;
+
+      const [vacios] = await req.db.query(
+        `SELECT cod_prod, SUM(cantidad) AS total
+         FROM soda_cardes
+         WHERE movimiento = 'vacio' AND ${whereClause}
+         GROUP BY cod_prod`,
+        params
+      );
+
+      const [llenos] = await req.db.query(
+        `SELECT cod_prod, SUM(cantidad) AS total
+         FROM soda_cardes
+         WHERE movimiento = 'lleno' AND ${whereClause}
+         GROUP BY cod_prod`,
+        params
+      );
+
+      vacios.forEach(row => {
+        if (row.cod_prod === 'A3') vaciosA3 = Number(row.total || 0);
+        if (row.cod_prod === 'A4') vaciosA4 = Number(row.total || 0);
+      });
+
+      llenos.forEach(row => {
+        if (row.cod_prod === 'A3') llenosA3 = Number(row.total || 0);
+        if (row.cod_prod === 'A4') llenosA4 = Number(row.total || 0);
+      });
+
+      totalMovA3 = vaciosA3 + llenosA3;
+      totalMovA4 = vaciosA4 + llenosA4;
+
+      const [[{ totalTapasMov }]] = await req.db.query(
+        `SELECT SUM(cantidad) AS total
+         FROM soda_cardes
+         WHERE movimiento = 'tapas' AND ${whereClause}`,
+        params
+      );
+
+      const [cargas] = await req.db.query(
+        `SELECT cod_prod, SUM(cantidad) AS total
+         FROM soda_cardes
+         WHERE movimiento = 'carga' AND ${whereClause}
+         GROUP BY cod_prod`,
+        params
+      );
+
+      let cargaA3 = 0;
+      let cargaA4 = 0;
+      cargas.forEach(row => {
+        if (row.cod_prod === 'A3') cargaA3 = Number(row.total || 0);
+        if (row.cod_prod === 'A4') cargaA4 = Number(row.total || 0);
+      });
+
+      const ultimoStock = stocks.at(-1);
+
+      diferenciasTotales = {
+        totaltapas: Number(totalVenta || 0) - Number(ultimoStock?.tapas || 0),
+        difA3: totalMovA3 - cargaA3,
+        difA4: totalMovA4 - cargaA4,
+        difBase: Number(totalTapasMov || 0) - Number(ultimoStock?.bases || 0)
+      };
     }
 
     res.render('tapasbidones', {
@@ -1018,14 +1210,22 @@ app.get('/tapasbidones', async (req, res) => {
       llenosA4,
       totalMovA3,
       totalMovA4,
-      resumenCardes
+      resumenCardes,
+      diferenciasTotales,
+      diferenciasPorDia,
+      totalDiferenciaA3Pos,
+      totalDiferenciaA3Neg,
+      totalDiferenciaA4Pos,
+      totalDiferenciaA4Neg,
+      pinchados
     });
-
   } catch (err) {
     console.error('Error en GET /tapasbidones:', err);
     res.status(500).send('Error en el servidor.');
   }
 });
+
+
 
 
 
