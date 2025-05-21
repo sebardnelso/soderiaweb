@@ -3,11 +3,20 @@ const express = require('express');
 const path = require('path');
 const dotenv = require('dotenv');
 const mysql = require('mysql2/promise'); // Usamos la versión promise
+const session = require('express-session');
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(session({
+  secret: 'S1e7b0@3',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // en producción poné secure: true solo con HTTPS
+}));
 
 dotenv.config();
 
-const app = express();
-const port = process.env.PORT || 3000;
+
 
 // Configurar EJS como motor de vistas
 app.set('view engine', 'ejs');
@@ -36,45 +45,46 @@ app.use((req, res, next) => {
   req.db = pool;
   next();
 });
-
-// Ruta para mostrar el formulario de login
+function verificarLogin(req, res, next) {
+  if (req.session.usuario) {
+    return next();
+  } else {
+    return res.redirect('/login');
+  }
+}
+// Mostrar el formulario de login
 app.get('/login', (req, res) => {
-  res.render('login', { title: 'Login' });
+  res.render('login', { title: 'Login', error: null });
 });
+
+// Procesar el formulario de login
+app.post('/login', async (req, res) => {
+  const { nombre, password } = req.body;
+
+  const [result] = await req.db.query(
+    'SELECT * FROM usuario WHERE nombre = ? AND password = ?',
+    [nombre, password]
+  );
+
+  if (result.length > 0) {
+    req.session.usuario = result[0].nombre;
+    res.redirect('/menu');
+  } else {
+    res.render('login', { title: 'Login', error: 'Usuario o contraseña incorrectos' });
+  }
+});
+
 
 // Ruta para mostrar el formulario de login
 app.get('/clientes', (req, res) => {
   res.render('clientes', { title: 'clientes' });
 });
 
-// Ruta para procesar el login
-app.post('/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).send('Debe ingresar usuario y contraseña.');
-    }
 
-    const [rows] = await req.db.query(
-      'SELECT * FROM usuario WHERE nombre = ? AND password = ?',
-      [username, password]
-    );
 
-    if (rows.length > 0) {
-      // Login correcto
-      res.redirect('/menu');
-    } else {
-      // Login incorrecto
-      res.redirect('/login');
-    }
-  } catch (err) {
-    console.error('Error en la consulta de usuario:', err);
-    res.status(500).send('Error en el servidor.');
-  }
-});
 
 // Ruta para mostrar el menú
-app.get('/menu', (req, res) => {
+app.get('/menu', verificarLogin,(req, res) => {
   res.render('menu', { title: 'Menú' });
 });
 
@@ -118,7 +128,7 @@ app.get('/ventaxdia', (req, res) => {
 });
 
 
-app.post('/ventaxdia', async (req, res) => {
+app.post('/ventaxdia', verificarLogin,async (req, res) => {
   try {
     const { cod_rep, fecha, cod_zona } = req.body;
     if (!cod_rep || !fecha || !cod_zona) {
@@ -287,7 +297,7 @@ app.post('/ventaxdia', async (req, res) => {
 
 
 // Ruta GET para clientenuevo
-app.get('/clientenuevo', async (req, res) => {
+app.get('/clientenuevo', verificarLogin,async (req, res) => {
   try {
     const query = `
       SELECT id, razon, localidad, celular, bidon, cantidad, numzona, secuencia, pago
@@ -315,7 +325,7 @@ app.post('/clientenuevo/eliminar/:id', async (req, res) => {
 });
 
 
-app.get('/hojaruta', async (req, res) => {
+app.get('/hojaruta', verificarLogin,async (req, res) => {
   try {
     const { cod_rep, cod_zona, mes_desde, mes_hasta, anio } = req.query;
     if (!cod_rep || !cod_zona || !mes_desde || !mes_hasta || !anio) {
@@ -606,7 +616,7 @@ app.post('/cobranza/modificar', async (req, res) => {
 
 // GET /liquidaciones — muestra formulario y, si vienen parámetros, los resultados
 // BACKEND COMPLETO
-app.get('/liquidaciones', async (req, res) => {
+app.get('/liquidaciones', verificarLogin,async (req, res) => {
   try {
     const { cod_rep, fecha_desde, fecha_hasta } = req.query;
 
@@ -789,7 +799,7 @@ app.get('/liquidaciones', async (req, res) => {
 
 
 
-app.get('/clientes', async (req, res) => {
+app.get('/clientes', verificarLogin,async (req, res) => {
   try {
     const [clientes] = await req.db.query(`SELECT cod_rep, cod_zona, fecha, orden, cod_cliente, nom_cliente, domicilio, localidad, celular, secuencia, saldiA3, saldiA4 FROM soda_hoja_header`);
     res.render('clientes', { clientes }); // si querés pasar la lista a un dropdown o tabla
@@ -964,7 +974,7 @@ app.post('/clientes/actualizarCampo', async (req, res) => {
 // ----------------------------
 
 // GET /tapasbidones — listado, filtro y formulario
-app.get('/tapasbidones', async (req, res) => {
+app.get('/tapasbidones', verificarLogin,async (req, res) => {
   try {
     const fechaDesde = req.query.fechaDesde || null;
     const fechaHasta = req.query.fechaHasta || null;
@@ -1352,7 +1362,7 @@ app.get('/api/cliente-header', async (req, res) => {
 // backend/server.js (o tu archivo de rutas)
 
 // GET: mostrar formulario y listado de ventas en planta
-app.get('/venta-planta', async (req, res) => {
+app.get('/venta-planta', verificarLogin,async (req, res) => {
   try {
     // Obtener todas las ventas en planta (cod_rep=100, cod_zona=100)
     const [ventasPlanta] = await req.db.query(
@@ -1374,7 +1384,7 @@ app.get('/venta-planta', async (req, res) => {
 });
 
 // POST: guardar nueva venta en planta y actualizar saldos
-app.post('/venta-planta', async (req, res) => {
+app.post('/venta-planta', verificarLogin,async (req, res) => {
   const {
     cod_cliente,
     cod_prod,
@@ -1439,7 +1449,7 @@ app.post('/venta-planta', async (req, res) => {
 
 
 // Ruta raíz (redirige a login)
-app.get('/', (req, res) => {
+app.get('/', verificarLogin,(req, res) => {
   res.redirect('/login');
 });
 
