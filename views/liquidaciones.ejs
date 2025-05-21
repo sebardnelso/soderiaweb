@@ -4,17 +4,10 @@
   <meta charset="UTF-8">
   <title><%= title %></title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Agrega esto dentro del <head> -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    /* Reset mínimo */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, sans-serif;
       background-color: #f5f7fa;
@@ -52,16 +45,14 @@
       margin-bottom: 5px;
       color: #34495e;
     }
-    input[type="text"],
-    input[type="date"] {
+    input[type="text"], input[type="date"] {
       padding: 10px;
       border: 1px solid #ccd1d9;
       border-radius: 4px;
       font-size: 1rem;
       transition: border-color 0.2s;
     }
-    input[type="text"]:focus,
-    input[type="date"]:focus {
+    input[type="text"]:focus, input[type="date"]:focus {
       outline: none;
       border-color: #3498db;
     }
@@ -78,9 +69,7 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-    .btn:hover {
-      background-color: #2980b9;
-    }
+    .btn:hover { background-color: #2980b9; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -95,12 +84,8 @@
       color: #fff;
       font-weight: 600;
     }
-    tbody tr:nth-child(even) {
-      background-color: #f2f4f8;
-    }
-    tbody tr:hover {
-      background-color: #e1e5ea;
-    }
+    tbody tr:nth-child(even) { background-color: #f2f4f8; }
+    tbody tr:hover { background-color: #e1e5ea; }
     .no-data {
       font-style: italic;
       color: #7f8c8d;
@@ -115,41 +100,32 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1><%= title %></h1>
-
-    <form action="/liquidaciones" method="get">
-      <div>
-        <label for="cod_rep">Repartidor (cod_rep) 0 para todos:</label>
-        <input type="text" id="cod_rep" name="cod_rep"
-               value="<%= parametros.cod_rep %>" required>
-      </div>
-      <div>
-        <label for="fecha_desde">Fecha desde:</label>
-        <input type="date" id="fecha_desde" name="fecha_desde"
-               value="<%= parametros.fecha_desde %>" required>
-      </div>
-      <div>
-        <label for="fecha_hasta">Fecha hasta:</label>
-        <input type="date" id="fecha_hasta" name="fecha_hasta"
-               value="<%= parametros.fecha_hasta %>" required>
-      </div>
-      <button type="submit" class="btn">Filtrar</button>
-      <button class="btn" onclick="location.href='/menu'">Volver</button>
-      
-    </form>
-<div id="pdf-container" class="container">
+<div class="container">
+  <h1><%= title %></h1>
+  <form action="/liquidaciones" method="get">
+    <div>
+      <label for="cod_rep">Repartidor (cod_rep) 0 para todos:</label>
+      <input type="text" id="cod_rep" name="cod_rep" value="<%= parametros.cod_rep %>" required>
+    </div>
+    <div>
+      <label for="fecha_desde">Fecha desde:</label>
+      <input type="date" id="fecha_desde" name="fecha_desde" value="<%= parametros.fecha_desde %>" required>
+    </div>
+    <div>
+      <label for="fecha_hasta">Fecha hasta:</label>
+      <input type="date" id="fecha_hasta" name="fecha_hasta" value="<%= parametros.fecha_hasta %>" required>
+    </div>
+    <button type="submit" class="btn">Filtrar</button>
+    <button class="btn" onclick="location.href='/menu'">Volver</button>
+  </form>
+  <div id="pdf-container" class="container">
     <% if (parametros.cod_rep) { %>
 
       <% if (rendiciones.length) { %>
         <h2>Rendiciones de adelantos</h2>
         <table>
           <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Descripción</th>
-              <th>Importe</th>
-            </tr>
+            <tr><th>Fecha</th><th>Descripción</th><th>Importe</th></tr>
           </thead>
           <tbody>
             <% rendiciones.forEach(r => { %>
@@ -170,14 +146,7 @@
         <table>
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Prod.</th>
-              <th>Cant.</th>
-              <th>Cob. cont.</th>
-              <th>Cob. ccte.</th>
-              <th>Bidones</th>
-              <th>Monto cont.</th>
-              <th>Monto ccte.</th>
+              <th>Fecha</th><th>Prod.</th><th>Cant.</th><th>Cob. cont.</th><th>Cob. ccte.</th><th>Total Cobrado</th><th>Monto cont.</th><th>Monto ccte.</th>
             </tr>
           </thead>
           <tbody>
@@ -188,9 +157,53 @@
                 <td><%= v.cantidad %></td>
                 <td><%= v.cobrado_ctdo.toFixed(2) %></td>
                 <td><%= v.cobrado_ccte.toFixed(2) %></td>
-                <td><%= v.bidones_vendidos %></td>
+                <td><%= (v.cobrado_ctdo + v.cobrado_ccte).toFixed(2) %></td>
                 <td><%= v.monto_ctdo.toFixed(2) %></td>
                 <td><%= v.monto_ccte.toFixed(2) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+
+
+        <h2>Diferencias por día</h2>
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Total Cobrado</th><th>Rendido</th><th>Diferencia</th></tr>
+          </thead>
+          <tbody>
+            <% diferencias.forEach(d => { %>
+              <tr>
+                <td><%= d.fecha %></td>
+                <td><%= d.cobrado.toFixed(2) %></td>
+                <td><%= d.rendido.toFixed(2) %></td>
+                <td><%= d.diferencia.toFixed(2) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+
+        <div class="total-neto">
+          Total de tapas vendidos: <%= totalBidones %><br>
+          Total cobrado: (<%= totalCobrado.toFixed(2) %>)<br>
+          20% para repartidor: (<%= subtotal20.toFixed(2) %>)<br>
+          Adelantos: (<%= totalAdelantos.toFixed(2) %>)<br>
+          Diferencia total: (<%= totalDiferencias.toFixed(2) %>)<br>
+          <strong>Total final: <%= totalFinal.toFixed(2) %></strong>
+        </div>
+
+
+        <h2>Resumen por producto y forma de cobro</h2>
+        <table>
+          <thead>
+            <tr><th>Producto</th><th>Cobrado Contado</th><th>Cobrado Cuenta Corriente</th></tr>
+          </thead>
+          <tbody>
+            <% ['A3', 'A4'].forEach(prod => { %>
+              <tr>
+                <td><%= prod %></td>
+                <td><%= resumenPorProducto[prod].contado.toFixed(2) %></td>
+                <td><%= resumenPorProducto[prod].ccte.toFixed(2) %></td>
               </tr>
             <% }) %>
           </tbody>
@@ -199,60 +212,39 @@
         <p class="no-data">No se encontraron ventas.</p>
       <% } %>
 
-      <% if (ventas.length) { %>
-        <div class="total-neto">
-          Total de tapas vendidos: <%= totalBidones %><br>
-          Total neto: (<%= ventas.reduce((sum, v) => sum + v.monto_ctdo + v.monto_ccte, 0).toFixed(2) %>)
-          – Adelantos: (<%= rendiciones.reduce((sum, r) => sum + Number(r.importe), 0).toFixed(2) %>)
-          = <%= totalLiquido.toFixed(2) %>
-        </div>
-      <% } %>
       <% if (parametros.cod_rep && ventas.length) { %>
         <button id="btnDescargarPDF" class="btn" style="margin-top: 20px;" onclick="generarPDF()">Descargar PDF</button>
-        
-        <% } %>
-      
-        
-
+      <% } %>
     <% } %>
   </div>
 </div>
 </body>
 <script>
-    async function generarPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pdfContainer = document.getElementById('pdf-container');
-  
-      // Opcional: ocultar botón durante la captura
-      const btn = document.querySelector('button');
-      btn.style.display = 'none';
-  
-      await html2canvas(pdfContainer, { scale: 2 }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 210; // A4 width
-        const pageHeight = 297; // A4 height
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-  
+  async function generarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pdfContainer = document.getElementById('pdf-container');
+    const btn = document.querySelector('button');
+    btn.style.display = 'none';
+    await html2canvas(pdfContainer, { scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        doc.addPage();
         doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
-  
-        while (heightLeft > 0) {
-          position -= pageHeight;
-          doc.addPage();
-          doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-  
-        doc.save('liquidacion.pdf');
-      });
-  
-      // Mostrar botón nuevamente y recargar página
-      btn.style.display = 'inline-block';
-      setTimeout(() => location.reload(), 500);
-    }
-  </script>
-  
+      }
+      doc.save('liquidacion.pdf');
+    });
+    btn.style.display = 'inline-block';
+    setTimeout(() => location.reload(), 500);
+  }
+</script>
 </html>
