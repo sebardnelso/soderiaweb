@@ -73,13 +73,17 @@
               <th>Cod Cliente</th>
               <th>Cliente</th>
               <th>Cod Prod</th>
-              <% 
-                const todasLasSemanas = Object.keys(data[0]?.semanas || {}).sort((a, b) => {
-                  const [ma, wa] = a.split('-').map(Number);
-                  const [mb, wb] = b.split('-').map(Number);
-                  return ma === mb ? wa - wb : ma - mb;
-                });
-              %>
+                  <%
+                    const semanasSet = new Set();
+                    data.forEach(row => {
+                      Object.keys(row.semanas || {}).forEach(s => semanasSet.add(s));
+                    });
+                    const todasLasSemanas = Array.from(semanasSet).sort((a, b) => {
+                      const [ma, wa] = a.split('-').map(Number);
+                      const [mb, wb] = b.split('-').map(Number);
+                      return ma === mb ? wa - wb : ma - mb;
+                    });
+                  %>
               <% todasLasSemanas.forEach(sem => { %>
                 <th colspan="5">Mes-Sem <%= sem %></th>
               <% }) %>
