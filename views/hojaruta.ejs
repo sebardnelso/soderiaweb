@@ -78,7 +78,9 @@
                     data.forEach(row => {
                       Object.keys(row.semanas || {}).forEach(s => semanasSet.add(s));
                     });
-                    const todasLasSemanas = Array.from(semanasSet).sort((a, b) => {
+                  const todasLasSemanas = Array.from(semanasSet)
+                    .filter(s => s && s.includes('-') && !s.includes('null')) // 🔴 Filtramos claves inválidas
+                    .sort((a, b) => {
                       const [ma, wa] = a.split('-').map(Number);
                       const [mb, wb] = b.split('-').map(Number);
                       return ma === mb ? wa - wb : ma - mb;
