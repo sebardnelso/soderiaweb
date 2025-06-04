@@ -7,7 +7,7 @@
   <style>
     /* Contenedor para la tabla con scroll vertical en la vista */
     .table-container {
-      max-height: 800px; /* Esta altura limita la vista en pantalla */
+      max-height: 800px;
       overflow-y: auto;
       margin-top: 20px;
     }
@@ -31,68 +31,107 @@
     tr:nth-child(even) {
       background-color: #f9f9f9;
     }
-    /* Estilos para el formulario */
-    form div {
-      margin-bottom: 10px;
-    }
-    label {
-      display: inline-block;
-      width: 150px;
-    }
-    input {
-      padding: 5px;
-      width: 200px;
-    }
-    button {
-      padding: 8px 16px;
-      margin: 5px;
-    }
-    /* Estilos para la fila de totales */
+    /* Formulario */
+    form div { margin-bottom: 10px; }
+    label { display: inline-block; width: 150px; }
+    input { padding: 5px; width: 200px; }
+    button { padding: 8px 16px; margin: 5px; }
+    /* Totales de la tabla */
     tfoot {
       font-weight: bold;
       background-color: #e2e2e2;
     }
-    tfoot td {
-      border-top: 2px solid #333;
-    }
-    /* Estilo para filas duplicadas */
-    .duplicado {
-      background-color: #FFA500; /* Color naranja */
-    }
-    /* Estilos para el resumen final */
+    tfoot td { border-top: 2px solid #333; }
+    /* Filas duplicadas */
+    .duplicado { background-color: #FFA500; }
+    /* Resumen final */
     .resumen {
-      margin-top: 20px;
+      margin: 30px 0;
       font-weight: bold;
     }
-    .resumen p {
-      margin: 5px 0;
+    .resumen p { margin: 5px 0; }
+    .detalle {
+      margin-left: 40px;
+      font-style: italic;
+      font-size: 0.95em;
     }
+    /* Columns A4/A3 */
+    .resumen-columns {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 20px;
+    }
+    .resumen-col {
+      flex: 1;
+      padding: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .resumen-col.a4 { background-color: #e8f5e9; }
+    .resumen-col.a3 { background-color: #e3f2fd; }
+    .resumen-col h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #aaa;
+      padding-bottom: 4px;
+    }
+    /* Movimientos y cobranza lado a lado */
+    .resumen-flex {
+      display: flex;
+      gap: 2rem;
+      margin-top: 20px;
+    }
+    .resumen-movs { flex: 1; }
+    .cobranza-rend {
+      flex: 1;
+      background: #f0f1df;
+      padding: 12px;
+      border-radius: 6px;
+    }
+    .cobranza-rend ul { list-style: none; padding: 0; }
+    .cobranza-rend li { margin: 4px 0; }
+    .cobranza-rend .total-rend {
+      margin-top: 10px;
+      font-weight: bold;
+      border-top: 1px solid #999;
+      padding-top: 8px;
+    }
+    .cobranza-rend .diferencia-rend {
+      margin-top: 6px;
+      font-weight: bold;
+      color: #b71c1c;
+    }
+    /* Avisos de préstamo/recupero */
+    .aviso { padding: 8px; border-radius: 4px; margin: 6px 0; }
+    .aviso.presto   { background-color: #FFA500; color: #000; }
+    .aviso.recupero { background-color: #90EE90; color: #000; }
   </style>
 </head>
 <body>
   <h1><%= title %></h1>
-  
-  <form action="/ventaxdia" method="POST">
-    <div>
-      <label for="cod_rep">Código Representante:</label>
-      <input type="text" id="cod_rep" name="cod_rep" value="<%= parametros.cod_rep || '' %>" required>
-    </div>
-    <div>
-      <label for="fecha">Fecha:</label>
-      <input type="date" id="fecha" name="fecha" value="<%= parametros.fecha || '' %>" required>
-    </div>
-    <div>
-      <label for="cod_zona">Zona:</label>
-      <input type="text" id="cod_zona" name="cod_zona" value="<%= parametros.cod_zona || '' %>" required>
-    </div>
-    <button type="submit">Consultar</button>
-  </form>
 
-  <% if (resultados && resultados.length > 0) { %>
+<form action="/ventaxdia" method="POST" class="card card-body bg-light mb-4">
+  <div class="form-row">
+    <div class="form-group col-md-4">
+      <label for="cod_rep">Código viaj</label>
+      <input type="text" class="form-control" id="cod_rep" name="cod_rep" value="<%= parametros.cod_rep || '' %>" required>
+    </div>
+    <div class="form-group col-md-4">
+      <label for="fecha">Fecha</label>
+      <input type="date" class="form-control" id="fecha" name="fecha" value="<%= parametros.fecha || '' %>" required>
+    </div>
+    <div class="form-group col-md-4">
+      <label for="cod_zona">Zona</label>
+      <input type="text" class="form-control" id="cod_zona" name="cod_zona" value="<%= parametros.cod_zona || '' %>" required>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Consultar</button>
+</form>
+
+
+  <% if (resultados && resultados.length) { %>
     <h2>Resultados</h2>
-    <!-- Contenedor padre para la tabla y el resumen -->
     <div id="pdfContainer">
-      <!-- Contenedor que se muestra en pantalla y se usará para clonar la grilla completa -->
       <div class="table-container" id="tablaPDF">
         <table id="miTabla">
           <thead>
@@ -111,151 +150,258 @@
           </thead>
           <tbody>
             <% 
-              // Totales generales
-              let totalDebe = 0;
-              let totalVenta = 0;
-              let totalCobradoCDTO = 0;
-              let totalCobradoCCTE = 0;
-              let totalBidonesBajados = 0;
-              let totalSaldo = 0;
-              // Totales por producto A3 y A4
+              // Totales por producto
               let totalA3Vendidos = 0, totalA4Vendidos = 0;
               let totalA3Contado = 0, totalA4Contado = 0;
+              let totalA3CuentaCorriente = 0, totalA4CuentaCorriente = 0;
               let totalA3Fio = 0, totalA4Fio = 0;
-              // Para evitar duplicados en caso de combinar clientes y productos
-              let combinacionesVistas = {};
+              let combinaciones = {};
             %>
-            <% resultados.forEach(function(row) { 
-                const debe = parseFloat(row.debe_total) || 0;
-                const venta = parseFloat(row.venta) || 0;
-                const cobradoCDTO = parseFloat(row.cobrado_ctdo) || 0;
-                const cobradoCCTE = parseFloat(row.cobrado_ccte) || 0;
-                const saldo = debe + venta - cobradoCDTO - cobradoCCTE;
-                
-                totalDebe += debe;
-                totalVenta += venta;
-                totalCobradoCDTO += cobradoCDTO;
-                totalCobradoCCTE += cobradoCCTE;
-                totalBidonesBajados += parseFloat(row.bidones_bajados) || 0;
-                totalSaldo += saldo;
-                
-                // Acumular totales por producto (asumiendo que row.cod_prod es 'A3' o 'A4')
-                if(row.cod_prod === 'A3'){
-                  totalA3Vendidos += parseFloat(row.bidones_bajados) || 0;
-                  totalA3Contado += cobradoCDTO;
-                  totalA3Fio += venta - cobradoCDTO;
-                } else if(row.cod_prod === 'A4'){
-                  totalA4Vendidos += parseFloat(row.bidones_bajados) || 0;
-                  totalA4Contado += cobradoCDTO;
-                  totalA4Fio += venta - cobradoCDTO;
-                }
-                
-                let clave = row.cod_cliente + '-' + row.cod_prod;
-                let esDuplicado = combinacionesVistas[clave] ? true : false;
-                combinacionesVistas[clave] = true;
+            <% resultados.forEach(r => { 
+                 const debe = parseFloat(r.debe_total)||0;
+                 const venta = parseFloat(r.venta)||0;
+                 const cobCD = parseFloat(r.cobrado_ctdo)||0;
+                 const cobCC = parseFloat(r.cobrado_ccte)||0;
+                 const bidones = parseFloat(r.bidones_bajados)||0;
+                 const saldo = debe + venta - cobCD - cobCC;
+
+                 if (r.cod_prod==='A3') {
+                   totalA3Vendidos += bidones;
+                   totalA3Contado  += cobCD;
+                   totalA3CuentaCorriente += cobCC;
+                   totalA3Fio += (venta - cobCD);
+                 } else if (r.cod_prod==='A4') {
+                   totalA4Vendidos += bidones;
+                   totalA4Contado  += cobCD;
+                   totalA4CuentaCorriente += cobCC;
+                   totalA4Fio += (venta - cobCD);
+                 }
+
+                 const key = r.cod_cliente+'-'+r.cod_prod;
+                 const dup = combinaciones[key];
+                 combinaciones[key] = true;
             %>
-              <tr class="<%= esDuplicado ? 'duplicado' : '' %>">
-                <td><%= row.cod_cliente %></td>
-                <td><%= row.nom_cliente %></td>
-                <td><%= row.cod_prod %></td>
-                <td><%= debe.toFixed(2) %></td>
-                <td><%= venta.toFixed(2) %></td>
-                <td><%= cobradoCDTO.toFixed(2) %></td>
-                <td><%= cobradoCCTE.toFixed(2) %></td>
-                <td><%= saldo.toFixed(2) %></td>
-                <td><%= row.bidones_bajados %></td>
-                <td><%= row.motivo %></td>
-              </tr>
-            <% }); %>
+            <tr class="<%= dup ? 'duplicado':'' %>">
+              <td><%= r.cod_cliente %></td>
+              <td><%= r.nom_cliente %></td>
+              <td><%= r.cod_prod %></td>
+              <td><%= debe.toFixed(2) %></td>
+              <td><%= venta.toFixed(2) %></td>
+              <td><%= cobCD.toFixed(2) %></td>
+              <td><%= cobCC.toFixed(2) %></td>
+              <td><%= saldo.toFixed(2) %></td>
+              <td><%= r.bidones_bajados %></td>
+              <td><%= r.motivo %></td>
+            </tr>
+            <% }) %>
           </tbody>
-          <% if (totales) { %>
-            <tfoot>
-              <tr>
-                <td colspan="3">Totales</td>
-                <td><%= totalDebe.toFixed(2) %></td>
-                <td><%= totalVenta.toFixed(2) %></td>
-                <td><%= totalCobradoCDTO.toFixed(2) %></td>
-                <td><%= totalCobradoCCTE.toFixed(2) %></td>
-                <td><%= totalSaldo.toFixed(2) %></td>
-                <td><%= totalBidonesBajados.toFixed(2) %></td>
-                <td></td>
-              </tr>
-            </tfoot>
-          <% } %>
+          <tfoot>
+            <tr>
+              <td colspan="3">Totales</td>
+              <td><%= totales.debe.toFixed(2) %></td>
+              <td><%= totales.venta.toFixed(2) %></td>
+              <td><%= totales.cobrado_ctdo.toFixed(2) %></td>
+              <td><%= totales.cobrado_ccte.toFixed(2) %></td>
+              <td><%= (totales.debe + totales.venta - totales.cobrado_ctdo - totales.cobrado_ccte).toFixed(2) %></td>
+              <td><%= totales.bidones_bajados.toFixed(2) %></td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
-      
-      <!-- Sección de resumen extra -->
-      <div class="resumen">
-        <p>Cantidad de bidones A3 vendidos: <strong><%= totalA3Vendidos %></strong></p>
-        <p>Cantidad de bidones A4 vendidos: <strong><%= totalA4Vendidos %></strong></p>
-        <p>Monto cobrado de contado para A3: <strong><%= totalA3Contado.toFixed(2) %></strong></p>
-        <p>Monto cobrado de contado para A4: <strong><%= totalA4Contado.toFixed(2) %></strong></p>
-        <p>Monto a crédito (fío) para A3: <strong><%= totalA3Fio.toFixed(2) %></strong></p>
-        <p>Monto a crédito (fío) para A4: <strong><%= totalA4Fio.toFixed(2) %></strong></p>
-      </div>
+
+      <!-- Resumen por producto A4/A3 -->
+<!-- Resumen por producto A4/A3 -->
+<div class="resumen-columns">
+  <div class="resumen-col a4">
+    <h3>Datos A4</h3>
+    <p>
+      Cantidad vendida: <strong><%= totalA4Vendidos %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Vendidos %></strong> = $<strong><%= (totalA4Vendidos*priceA4).toFixed(2) %></strong>
+      </span>
+    </p>
+    <p>
+      Cobrado contado: <strong><%= totalA4Contado.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Contado.toFixed(2) %></strong> = $<strong><%= (totalA4Contado*priceA4).toFixed(2) %></strong>
+      </span>
+    </p>
+    <p>
+      Cobrado cte: <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA4CuentaCorriente*priceA4).toFixed(2) %></strong>
+      </span>
+    </p>
+    <% if (detalleCobranzaA4 && detalleCobranzaA4.length) { %>
+      <details>
+        <summary>Ver cobrado ccte</summary>
+        <ul>
+          <% detalleCobranzaA4.forEach(item => { %>
+            <li><%= item.cod_cliente %> — <strong><%= item.cobrado.toFixed(2) %></strong></li>
+          <% }) %>
+        </ul>
+      </details>
+    <% } %>
+    <p>
+      Lo fiado: <strong><%= totalA4Fio.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA4.toFixed(2) %></strong> x <strong><%= totalA4Fio %></strong> = $<strong><%= (totalA4Fio*priceA4).toFixed(2) %></strong>
+      </span>
+    </p>
+  </div>
+  <div class="resumen-col a3">
+    <h3>Datos A3</h3>
+    <p>
+      Cantidad vendida: <strong><%= totalA3Vendidos %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Vendidos %></strong> = $<strong><%= (totalA3Vendidos*priceA3).toFixed(2) %></strong>
+      </span>
+    </p>
+    <p>
+      Cobrado contado: <strong><%= totalA3Contado.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Contado.toFixed(2) %></strong> = $<strong><%= (totalA3Contado*priceA3).toFixed(2) %></strong>
+      </span>
+    </p>
+    <p>
+      Cobrado cte: <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3CuentaCorriente.toFixed(2) %></strong> = $<strong><%= (totalA3CuentaCorriente*priceA3).toFixed(2) %></strong>
+      </span>
+    </p>
+    <% if (detalleCobranzaA3 && detalleCobranzaA3.length) { %>
+      <details>
+        <summary>Ver cobrado ccte</summary>
+        <ul>
+          <% detalleCobranzaA3.forEach(item => { %>
+            <li><%= item.cod_cliente %> — <strong><%= item.cobrado.toFixed(2) %></strong></li>
+          <% }) %>
+        </ul>
+      </details>
+    <% } %>
+    <p>
+      Lo fiado: <strong><%= totalA3Fio.toFixed(2) %></strong>
+      <span class="detalle">
+        | $<strong><%= priceA3.toFixed(2) %></strong> x <strong><%= totalA3Fio %></strong> = $<strong><%= (totalA3Fio*priceA3).toFixed(2) %></strong>
+      </span>
+    </p>
+  </div>
+</div>
+
+
+<!-- Movimientos y Cobranza lado a lado -->
+<div class="resumen-flex">
+  <div class="resumen-movs">
+    <h3>Movimientos de camión</h3>
+    <ul>
+      <li>
+        Carga A4: 
+        <strong><%= resumenMovs.carga.A4.values.join(' + ') %> = <%= resumenMovs.carga.A4.sum %></strong>
+      </li>
+      <li>
+        Carga A3: 
+        <strong><%= resumenMovs.carga.A3.values.join(' + ') %> = <%= resumenMovs.carga.A3.sum %></strong>
+      </li>
+      <li>Vacios A4: <strong><%= resumenMovs.vacio.A4.sum %></strong></li>
+      <li>Vacios A3: <strong><%= resumenMovs.vacio.A3.sum %></strong></li>
+      <li>Llenos A4: <strong><%= resumenMovs.lleno.A4.sum %></strong></li>
+      <li>Llenos A3: <strong><%= resumenMovs.lleno.A3.sum %></strong></li>
+    </ul>
+
+    <% ['A4','A3'].forEach(prod => {
+         const cargados = resumenMovs.carga[prod].sum;
+         const llenos = resumenMovs.lleno[prod].sum;
+         const vendidos = prod === 'A4' ? totalA4Vendidos : totalA3Vendidos;
+         const diferencia = cargados - llenos;
+    %>
+      <p class="aviso <%= diferencia !== vendidos ? 'presto' : '' %>">
+        <strong><%= prod %>:</strong>
+        Carga - Llenos = <%= cargados %> - <%= llenos %> = <strong><%= diferencia %></strong><br>
+        Vendidos: <strong><%= vendidos %></strong>
+        <% if (diferencia !== vendidos) { %>
+          <br><span>⚠ Diferencia entre carga-llenos y venta para <%= prod %></span>
+        <% } %>
+      </p>
+    <% }); %>
+
+    <h4>Estado</h4>
+    <% ['A4','A3'].forEach(prod => {
+         const n = notificaciones[prod];
+         if (n.tipo==='presto') { %>
+      <p class="aviso presto"><%= prod %> — Prestó <strong><%= n.diff %></strong></p>
+    <% } else if (n.tipo==='recupero') { %>
+      <p class="aviso recupero"><%= prod %> — Recuperó <strong><%= n.diff %></strong></p>
+    <% } else { %>
+      <p><%= prod %> — Sin diferencias</p>
+    <% }}); %>
+  </div>
+
+  <div class="cobranza-rend">
+    <h3>Cobranza cargada</h3>
+    <ul>
+      <% rendiciones.forEach(item => { %>
+        <li><%= item.descripcion %>: <strong>$<%= Number(item.importe).toFixed(2) %></strong></li>
+      <% }); %>
+      <% if (!rendiciones.length) { %>
+        <li><em>No hay rendiciones.</em></li>
+      <% } %>
+      <li class="total-rend"><strong>Total:</strong> $<%= totalRendiciones.toFixed(2) %></li>
+      <% 
+        const cobA4 = (totalA4Contado + totalA4CuentaCorriente) * priceA4;
+        const cobA3 = (totalA3Contado + totalA3CuentaCorriente) * priceA3;
+        const cobranzaCalc = cobA4 + cobA3;
+        const diferencia = totalRendiciones - cobranzaCalc;
+      %>
+      <li class="diferencia-rend"><strong>Diferencia calculada:</strong> $<%= diferencia.toFixed(2) %></li>
+    </ul>
+  </div>
+</div>
+
+      <button onclick="generarPDF()">Descargar PDF</button>
+      <button type="button" onclick="mostrarErrores()">Ver Errores</button>
+      <button onclick="location.href='/menu'">Volver</button>
     </div>
-    
-    <!-- Botones para descargar el PDF y volver al menú -->
-    <button onclick="generarPDF()">Descargar PDF</button>
-    <button onclick="location.href='/menu'">Volver</button>
   <% } else if (resultados) { %>
-    <p>No se encontraron resultados para los parámetros proporcionados.</p>
+    <p>No se encontraron resultados.</p>
     <button onclick="location.href='/menu'">Volver</button>
   <% } %>
 
-  <!-- Librerías para generar PDF -->
+  <!-- jsPDF & html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script>
     function generarPDF() {
-      // Clonar el contenedor que incluye la tabla y el resumen
-      const contenedorOriginal = document.getElementById('pdfContainer');
-      const clon = contenedorOriginal.cloneNode(true);
-
-      // Forzar que los contenedores sincronicen su altura completa
-      clon.style.maxHeight = "none";
-      clon.style.overflow = "visible";
-      // Remover restricciones de scroll en la tabla
-      clon.querySelectorAll('.table-container').forEach(el => {
-        el.style.maxHeight = "none";
-        el.style.overflow = "visible";
+      const cont = document.getElementById('pdfContainer');
+      const clone = cont.cloneNode(true);
+      clone.style.maxHeight = 'none';
+      clone.style.overflow = 'visible';
+      clone.querySelectorAll('.table-container').forEach(e=>{e.style.maxHeight='none';e.style.overflow='visible';});
+      clone.querySelectorAll('thead th').forEach(e=>e.style.position='static');
+      const tmp = document.createElement('div');
+      tmp.style.position = 'absolute'; tmp.style.top = '-10000px';
+      tmp.appendChild(clone); document.body.appendChild(tmp);
+      html2canvas(clone, {useCORS:true, scale:2}).then(canvas=>{
+        const img = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF('p','mm','a4');
+        const w = pdf.internal.pageSize.getWidth();
+        const h = canvas.height*w/canvas.width;
+        let rem = h, y=0;
+        pdf.addImage(img,'PNG',0,y,w,h); rem-=pdf.internal.pageSize.getHeight();
+        while(rem>0){ y = rem - h; pdf.addPage(); pdf.addImage(img,'PNG',0,y,w,h); rem-=pdf.internal.pageSize.getHeight(); }
+        pdf.save('grilla.pdf'); document.body.removeChild(tmp);
       });
-      // Quitar posición sticky de los encabezados
-      clon.querySelectorAll("thead th").forEach(el => {
-        el.style.position = "static";
+    }
+    function mostrarErrores() {
+      const filas = Array.from(document.querySelectorAll('#miTabla tbody tr'));
+      const cuenta = {};
+      filas.forEach(f=>{
+        const key = f.cells[0].innerText+'-'+f.cells[2].innerText;
+        cuenta[key] = (cuenta[key]||0)+1;
       });
-      
-      // Crear un contenedor temporal fuera de la vista
-      const contenedorTemporal = document.createElement('div');
-      contenedorTemporal.style.position = 'absolute';
-      contenedorTemporal.style.top = '-10000px';
-      contenedorTemporal.appendChild(clon);
-      document.body.appendChild(contenedorTemporal);
-      
-      html2canvas(clon, { useCORS: true, scale: 2 }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-        const pageWidth = pdf.internal.pageSize.getWidth(); // ancho de la página en mm
-        const pageHeight = pdf.internal.pageSize.getHeight(); // alto de la página en mm
-        // Calcular el alto de la imagen en el PDF manteniendo la proporción
-        const imgHeight = canvas.height * pageWidth / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-        
-        pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
-        heightLeft -= pageHeight;
-        
-        // Mientras quede contenido por agregar, crea una nueva página y añade la imagen con el offset correspondiente.
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-        
-        pdf.save('grilla.pdf');
-        document.body.removeChild(contenedorTemporal);
+      filas.forEach(f=>{
+        const key = f.cells[0].innerText+'-'+f.cells[2].innerText;
+        f.style.display = cuenta[key]>1?'':'none';
       });
     }
   </script>

@@ -1,0 +1,163 @@
+<% title = "Hoja de Ruta" %>
+
+<section class="content-header">
+  <div class="container-fluid d-flex justify-content-between align-items-center">
+    <h1>Hoja de Ruta</h1>
+    <a href="/menu" class="btn btn-secondary">Volver</a>
+  </div>
+</section>
+
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- 🔎 Filtros por rep, zona, mes, año -->
+    <div class="card card-outline card-primary">
+      <div class="card-header">Filtros Generales</div>
+      <div class="card-body">
+        <form method="get" action="/hojaruta" class="form-inline flex-wrap gap-3">
+          <input name="cod_rep" class="form-control mr-2 mb-2" placeholder="Repartidor" value="<%= params.cod_rep || '' %>">
+          <input name="cod_zona" class="form-control mr-2 mb-2" placeholder="Zona" value="<%= params.cod_zona || '' %>">
+          <input name="mes_desde" type="number" min="1" max="12" class="form-control mr-2 mb-2" placeholder="Mes desde" value="<%= params.mes_desde || '' %>">
+          <input name="mes_hasta" type="number" min="1" max="12" class="form-control mr-2 mb-2" placeholder="Mes hasta" value="<%= params.mes_hasta || '' %>">
+          <input name="anio" type="number" min="2000" class="form-control mr-2 mb-2" placeholder="Año" value="<%= params.anio || '' %>">
+          <button type="submit" class="btn btn-primary mb-2">Filtrar</button>
+          <button type="button" class="btn btn-outline-dark mb-2 ml-2" onclick="mostrarErrores()">Ver Cuenta Corriente</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 🔍 Filtro por cliente -->
+    <div class="card card-outline card-info">
+      <div class="card-header">Filtrar por Cliente</div>
+      <div class="card-body">
+        <form method="get" action="/hojaruta/cliente" class="form-inline flex-wrap gap-3">
+          <input name="cod_cliente" class="form-control mr-2 mb-2" placeholder="Código Cliente" value="<%= params.cod_cliente || '' %>">
+          <input type="hidden" name="mes_desde" value="<%= params.mes_desde || '' %>">
+          <input type="hidden" name="mes_hasta" value="<%= params.mes_hasta || '' %>">
+          <input type="hidden" name="anio" value="<%= params.anio || '' %>">
+          <button type="submit" class="btn btn-info mb-2">Buscar Cliente</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 📄 Grilla de resultados -->
+    <% if (data.length) { %>
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>Resultados</strong>
+          <button class="btn btn-success btn-sm" onclick="generarPDF()">Descargar PDF</button>
+        </div>
+        <div class="card-body" id="pdfContainer" style="overflow-x: auto; white-space: nowrap;">
+          <table class="table table-bordered table-sm text-center">
+            <thead class="thead-light">
+              <tr>
+                <th>Cod Cliente</th>
+                <th>Cliente</th>
+                <th>Cod Prod</th>
+                <% 
+                  const semanasSet = new Set();
+                  data.forEach(row => {
+                    Object.keys(row.semanas || {}).forEach(s => semanasSet.add(s));
+                  });
+                  const todasLasSemanas = Array.from(semanasSet)
+                    .filter(s => s && s.includes('-') && !s.includes('null')) // 🔴 Filtramos claves inválidas
+                    .sort((a, b) => {
+                      const [ma, wa] = a.split('-').map(Number);
+                      const [mb, wb] = b.split('-').map(Number);
+                      return ma === mb ? wa - wb : ma - mb;
+                    });
+                %>
+                <% todasLasSemanas.forEach(sem => { %>
+                  <th colspan="5">Mes-Sem <%= sem %></th>
+                <% }) %>
+              </tr>
+              <tr>
+                <th></th><th></th><th></th>
+                <% todasLasSemanas.forEach(_ => { %>
+                  <th>Saldo</th><th>Venta</th><th>CD</th><th>CC</th><th>Res</th>
+                <% }) %>
+              </tr>
+            </thead>
+            <tbody>
+              <% data.forEach(row => { %>
+                <tr>
+                  <td><%= row.cod_cliente %></td>
+                  <td><%= row.nom_cliente %></td>
+                  <td><%= row.cod_prod %></td>
+                  <% todasLasSemanas.forEach(skey => {
+                      const s = row.semanas[skey] || {}; %>
+                    <td><%= (s.saldo_inicial || 0).toFixed(0) %></td>
+                    <td><%= (s.venta || 0).toFixed(0) %></td>
+                    <td><%= (s.cobrado_ctdo || 0).toFixed(0) %></td>
+                    <td><%= (s.cobrado_ccte || 0).toFixed(0) %></td>
+                    <td><%= (s.resultado || 0).toFixed(0) %></td>
+                  <% }) %>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% } else if (params.cod_rep || params.cod_cliente) { %>
+      <div class="alert alert-warning">No hay datos para esos parámetros.</div>
+    <% } %>
+
+  </div>
+</section>
+
+<!-- 📄 PDF & JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+  function generarPDF() {
+    const contenedorOriginal = document.getElementById('pdfContainer');
+    const clon = contenedorOriginal.cloneNode(true);
+    clon.style.maxHeight = "none";
+    clon.style.overflow = "visible";
+    clon.querySelectorAll("thead th").forEach(el => {
+      el.style.position = "static";
+    });
+    const contenedorTemporal = document.createElement('div');
+    contenedorTemporal.style.position = 'absolute';
+    contenedorTemporal.style.top = '-10000px';
+    contenedorTemporal.appendChild(clon);
+    document.body.appendChild(contenedorTemporal);
+
+    html2canvas(clon, { useCORS: true, scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgHeight = canvas.height * pageWidth / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save('hoja_ruta.pdf');
+      document.body.removeChild(contenedorTemporal);
+    });
+  }
+
+  function mostrarErrores() {
+    const filas = Array.from(document.querySelectorAll('#pdfContainer table tbody tr'));
+    filas.forEach(fila => {
+      const saldoInit = parseFloat(fila.cells[3].innerText) || 0;
+      const resultados = [];
+      for (let i = 7; i < fila.cells.length; i += 5) {
+        resultados.push(parseFloat(fila.cells[i].innerText) || 0);
+      }
+      const cumple = saldoInit > 0 || resultados.some(r => r > 0);
+      fila.style.display = cumple ? '' : 'none';
+    });
+  }
+</script>

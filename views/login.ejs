@@ -1,59 +1,27 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title><%= title %></title>
-  <link rel="stylesheet" href="/css/styles.css">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      background-color: #f2f2f2;
-    }
-    .login-container {
-      background-color: #fff;
-      padding: 20px;
-      border: 1px solid #ddd;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 300px;
-      text-align: center;
-    }
-    .logo {
-      max-width: 100%;
-      height: auto;
-      margin-bottom: 20px;
-    }
-    input[type="text"], input[type="password"] {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      border: 1px solid #ddd;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      background-color: #3498db;
-      border: none;
-      color: #fff;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-  </style>
-</head>
-<body>
-  <div class="login-container">
-    <img src="/images/logo.jpg" alt="Logo" class="logo">
-    <form action="/login" method="POST">
-      <input type="text" name="username" placeholder="Usuario" required>
-      <input type="password" name="password" placeholder="Contraseña" required>
-      <button type="submit">Iniciar Sesión</button>
-    </form>
+<% title = "Iniciar sesión" %>
+
+<p class="login-box-msg">Ingrese sus credenciales</p>
+
+<% if (error) { %>
+  <div class="alert alert-danger"><%= error %></div>
+<% } %>
+
+<form action="/login" method="POST">
+  <div class="input-group mb-3">
+    <input type="text" class="form-control" name="nombre" placeholder="Usuario" required>
+    <div class="input-group-append">
+      <div class="input-group-text"><span class="fas fa-user"></span></div>
+    </div>
   </div>
-</body>
-</html>
+  <div class="input-group mb-3">
+    <input type="password" class="form-control" name="password" placeholder="Contraseña" required>
+    <div class="input-group-append">
+      <div class="input-group-text"><span class="fas fa-lock"></span></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
+    </div>
+  </div>
+</form>

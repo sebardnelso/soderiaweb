@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Cobranza</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #e0e0e0;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    input, select {
+      padding: 6px;
+      margin: 5px;
+    }
+    .actions button {
+      padding: 6px 12px;
+      margin: 0 2px;
+    }
+    .form-section {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gestión de Cobranza</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Cod Rep</th>
+        <th>Rubro</th>
+        <th>Importe</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% cobranzas.forEach(c => { %>
+        <tr>
+          <td><%= c.fecha.toISOString().slice(0,10) %></td>
+          <td><%= c.cod_rep %></td>
+          <td><%= c.descripcion %></td>
+          <td><%= c.importe.toFixed(2) %></td>
+          <td class="actions">
+            <form method="POST" action="/cobranza/eliminar/<%= c.id %>" style="display:inline">
+              <button type="submit">Eliminar</button>
+            </form>
+            <button
+              class="btn-editar"
+              data-id="<%= c.id %>"
+              data-fecha="<%= c.fecha.toISOString().slice(0,10) %>"
+              data-cod_rep="<%= c.cod_rep %>"
+              data-cod_gasto="<%= c.cod_gasto %>"
+              data-importe="<%= c.importe %>"
+            >
+              Editar
+            </button>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <div class="form-section">
+    <h3 id="form-title">Nueva Cobranza</h3>
+    <form method="POST" action="/cobranza/agregar" id="form-cobranza">
+      <input type="hidden" name="id" id="id">
+      <label>Fecha: <input type="date" name="fecha" id="fecha" required></label>
+      <label>Cod Rep: <input type="number" name="cod_rep" id="cod_rep" required></label>
+      <label>Rubro:
+        <select name="cod_gasto" id="cod_gasto">
+          <% rubros.forEach(r => { %>
+            <option value="<%= r.cod %>"><%= r.descripcion %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Importe: <input type="number" step="0.01" name="importe" id="importe" required></label>
+      <button type="submit">Guardar</button>
+      <button type="button" onclick="cancelar()">Cancelar</button>
+      <button onclick="location.href='/menu'">Volver</button>
+    </form>
+  </div>
+  
+  <script>
+    // Manejar evento de clic en botones de editar usando data-*
+    document.querySelectorAll('.btn-editar').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id        = btn.dataset.id;
+        const fecha     = btn.dataset.fecha;
+        const cod_rep   = btn.dataset.codRep;
+        const cod_gasto = btn.dataset.codGasto;
+        const importe   = btn.dataset.importe;
+
+        document.getElementById('form-title').innerText = 'Editar Cobranza';
+        document.getElementById('id').value = id;
+        document.getElementById('fecha').value = fecha;
+        document.getElementById('cod_rep').value = cod_rep;
+        document.getElementById('cod_gasto').value = cod_gasto;
+        document.getElementById('importe').value = importe;
+        document.getElementById('form-cobranza').action = '/cobranza/modificar';
+      });
+    });
+
+    function cancelar() {
+      document.getElementById('form-cobranza').reset();
+      document.getElementById('id').value = '';
+      document.getElementById('form-title').innerText = 'Nueva Cobranza';
+      document.getElementById('form-cobranza').action = '/cobranza/agregar';
+    }
+  </script>
+</body>
+</html>

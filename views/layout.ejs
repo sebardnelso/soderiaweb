@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %> | Soderia</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/adminlte.min.css">
+  <link rel="stylesheet" href="/css/all.min.css"> <!-- FontAwesome -->
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+  <%- include('partials/navbar') %>
+  <%- include('partials/sidebar') %>
+
+  <div class="content-wrapper">
+    <%- body %>
+  </div>
+
+  <footer class="main-footer text-sm">
+    <strong>&copy; 2025 Soderia</strong> Todos los derechos reservados.
+  </footer>
+</div>
+
+<script src="/js/jquery.min.js"></script>
+<script src="/js/bootstrap.bundle.min.js"></script>
+<script src="/js/adminlte.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      color: #2c3e50;
+      border-bottom: 2px solid #e1e5ea;
+      padding-bottom: 10px;
+    }
+    form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    form div {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #34495e;
+    }
+    input[type="text"], input[type="date"] {
+      padding: 10px;
+      border: 1px solid #ccd1d9;
+      border-radius: 4px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, input[type="date"]:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+    .btn {
+      grid-column: span 2;
+      align-self: start;
+      padding: 12px 20px;
+      background-color: #3498db;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn:hover { background-color: #2980b9; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+    th, td {
+      padding: 12px 15px;
+      text-align: center;
+    }
+    thead th {
+      background-color: #3498db;
+      color: #fff;
+      font-weight: 600;
+    }
+    tbody tr:nth-child(even) { background-color: #f2f4f8; }
+    tbody tr:hover { background-color: #e1e5ea; }
+    .no-data {
+      font-style: italic;
+      color: #7f8c8d;
+      margin-bottom: 20px;
+    }
+    .total-neto {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2c3e50;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1><%= title %></h1>
+  <form action="/liquidaciones" method="get">
+    <div>
+      <label for="cod_rep">Repartidor (cod_rep) 0 para todos:</label>
+      <input type="text" id="cod_rep" name="cod_rep" value="<%= parametros.cod_rep %>" required>
+    </div>
+    <div>
+      <label for="fecha_desde">Fecha desde:</label>
+      <input type="date" id="fecha_desde" name="fecha_desde" value="<%= parametros.fecha_desde %>" required>
+    </div>
+    <div>
+      <label for="fecha_hasta">Fecha hasta:</label>
+      <input type="date" id="fecha_hasta" name="fecha_hasta" value="<%= parametros.fecha_hasta %>" required>
+    </div>
+    <button type="submit" class="btn">Filtrar</button>
+    <button class="btn" onclick="location.href='/menu'">Volver</button>
+  </form>
+  <div id="pdf-container" class="container">
+    <% if (parametros.cod_rep) { %>
+
+      <% if (rendiciones.length) { %>
+        <h2>Rendiciones de adelantos</h2>
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Descripción</th><th>Importe</th></tr>
+          </thead>
+          <tbody>
+            <% rendiciones.forEach(r => { %>
+              <tr>
+                <td><%= r.fecha.toISOString().slice(0,10) %></td>
+                <td><%= r.descripcion %></td>
+                <td><%= Number(r.importe).toFixed(2) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } else { %>
+        <p class="no-data">No se encontraron rendiciones.</p>
+      <% } %>
+
+      <% if (ventas.length) { %>
+        <h2>Ventas por fecha y producto</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Prod.</th><th>Cant.</th><th>Cob. cont.</th><th>Cob. ccte.</th><th>Total Cobrado</th><th>Monto cont.</th><th>Monto ccte.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% ventas.forEach(v => { %>
+              <tr>
+                <td><%= v.fecha.toISOString().slice(0,10) %></td>
+                <td><%= v.cod_prod %></td>
+                <td><%= v.cantidad %></td>
+                <td><%= v.cobrado_ctdo.toFixed(2) %></td>
+                <td><%= v.cobrado_ccte.toFixed(2) %></td>
+                <td><%= (v.cobrado_ctdo + v.cobrado_ccte).toFixed(2) %></td>
+                <td><%= v.monto_ctdo.toFixed(2) %></td>
+                <td><%= v.monto_ccte.toFixed(2) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+
+
+        <h2>Diferencias por día</h2>
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Total Cobrado</th><th>Rendido</th><th>Diferencia</th></tr>
+          </thead>
+          <tbody>
+            <% diferencias.forEach(d => { %>
+              <tr>
+                <td><%= d.fecha %></td>
+                <td><%= d.cobrado.toFixed(2) %></td>
+                <td><%= d.rendido.toFixed(2) %></td>
+                <td><%= d.diferencia.toFixed(2) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+
+        <div class="total-neto">
+          Total de tapas vendidos: <%= totalBidones %><br>
+          Total cobrado: (<%= totalCobrado.toFixed(2) %>)<br>
+          20% para repartidor: (<%= subtotal20.toFixed(2) %>)<br>
+          Adelantos: (<%= totalAdelantos.toFixed(2) %>)<br>
+          Diferencia total: (<%= totalDiferencias.toFixed(2) %>)<br>
+          <strong>Total final: <%= totalFinal.toFixed(2) %></strong>
+        </div>
+
+
+        <h2>Resumen por producto y forma de cobro</h2>
+        <table>
+          <thead>
+            <tr><th>Producto</th><th>Cobrado Contado</th><th>Cobrado Cuenta Corriente</th></tr>
+          </thead>
+          <tbody>
+            <% ['A3', 'A4'].forEach(prod => { %>
+              <tr>
+                <td><%= prod %></td>
+                <td><%= resumenPorProducto[prod].contado.toFixed(2) %></td>
+                <td><%= resumenPorProducto[prod].ccte.toFixed(2) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } else { %>
+        <p class="no-data">No se encontraron ventas.</p>
+      <% } %>
+
+      <% if (parametros.cod_rep && ventas.length) { %>
+        <button id="btnDescargarPDF" class="btn" style="margin-top: 20px;" onclick="generarPDF()">Descargar PDF</button>
+      <% } %>
+    <% } %>
+  </div>
+</div>
+</body>
+<script>
+  async function generarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pdfContainer = document.getElementById('pdf-container');
+    const btn = document.querySelector('button');
+    btn.style.display = 'none';
+    await html2canvas(pdfContainer, { scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        doc.addPage();
+        doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      doc.save('liquidacion.pdf');
+    });
+    btn.style.display = 'inline-block';
+    setTimeout(() => location.reload(), 500);
+  }
+</script>
+</html>

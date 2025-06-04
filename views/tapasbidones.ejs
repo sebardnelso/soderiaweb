@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; }
+    .container { max-width: 900px; margin: 40px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h1 { text-align: center; margin-bottom: 20px; font-size: 1.8em; }
+    form { margin-bottom: 30px; display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 15px; }
+    .form-group { display: flex; flex-direction: column; padding: 10px; }
+    label { margin-bottom: 5px; font-weight: bold; }
+    input[type="date"], input[type="number"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    button, .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 0.95em; }
+    button.primary, .btn-primary { background: #007bff; color: #fff; }
+    button.secondary, .btn-secondary { background: #6c757d; color: #fff; }
+    button.warning, .btn-warning { background: #ffc107; color: #212529; }
+    button.danger, .btn-danger { background: #dc3545; color: #fff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+    th { background: #007bff; color: #fff; }
+    .actions form { display: inline; }
+    .report { margin-top: 30px; padding: 15px; background: #e9ecef; border-radius: 4px; }
+    .report h2 { margin-bottom: 15px; font-size: 1.4em; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><%= title %></h1>
+
+ <div class="card shadow-sm mb-4">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">
+      <%= editedStock && editedStock.id ? 'Modificar Stock' : 'Agregar Stock' %>
+    </h5>
+  </div>
+  <div class="card-body">
+    <form id="stockForm" action="<%= formAction %>" method="POST">
+      <% if (editedStock && editedStock.id) { %>
+        <input type="hidden" name="id" value="<%= editedStock.id %>">
+      <% } %>
+
+      <div class="form-group">
+        <label for="fecha">Fecha</label>
+        <input type="date" class="form-control" id="fecha" name="fecha" value="<%= editedStock ? editedStock.fecha.toISOString().substring(0,10) : '' %>" required>
+      </div>
+
+      <div class="form-group">
+        <label for="tapas">Tapas</label>
+        <input type="number" class="form-control" id="tapas" name="tapas" step="1" value="<%= editedStock ? editedStock.tapas : '' %>" required>
+      </div>
+
+      <div class="form-group">
+        <label for="bidon_a3">Bidón A3</label>
+        <input type="number" class="form-control" id="bidon_a3" name="bidon_a3" step="1" value="<%= editedStock ? editedStock.bidon_a3 : '' %>" required>
+      </div>
+
+      <div class="form-group">
+        <label for="bidona4">Bidón A4</label>
+        <input type="number" class="form-control" id="bidona4" name="bidon_a4" step="1" value="<%= editedStock ? editedStock.bidon_a4 : '' %>" required>
+      </div>
+
+      <div class="form-group">
+        <label for="bases">Bases</label>
+        <input type="number" class="form-control" id="bases" name="bases" step="1" value="<%= editedStock ? editedStock.bases : '' %>" required>
+      </div>
+
+      <div class="form-group d-flex justify-content-end">
+        <button type="submit" class="btn btn-success">
+          <%= editedStock && editedStock.id ? 'Modificar' : 'Agregar' %>
+        </button>
+        <% if (editedStock && editedStock.id) { %>
+          <a href="/tapasbidones" class="btn btn-secondary ml-2">Cancelar</a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-info text-white">
+    <h5 class="mb-0">Generar Informe</h5>
+  </div>
+  <div class="card-body">
+    <form id="reportForm" action="/tapasbidones" method="GET">
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="fechaDesde">Fecha Desde</label>
+          <input type="date" class="form-control" id="fechaDesde" name="fechaDesde" value="<%= fechaDesde || '' %>" required>
+        </div>
+        <div class="form-group col-md-6">
+          <label for="fechaHasta">Fecha Hasta</label>
+          <input type="date" class="form-control" id="fechaHasta" name="fechaHasta" value="<%= fechaHasta || '' %>" required>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label for="cod_rep">Cod Rep</label>
+          <input type="number" class="form-control" id="cod_rep" name="cod_rep" value="<%= cod_rep || '' %>">
+        </div>
+        <div class="form-group col-md-6">
+          <label for="cod_zona">Cod Zona</label>
+          <input type="number" class="form-control" id="cod_zona" name="cod_zona" value="<%= cod_zona || '' %>">
+        </div>
+      </div>
+
+      <div class="form-group d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary">Generar Informe</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+
+     <div class="container">
+    <h1><%= title %></h1>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Tapas</th>
+          <th>Bidón A3</th>
+          <th>Bidón A4</th>
+          <th>Bases</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% stocks.forEach(stock => { %>
+          <tr>
+            <td><%= stock.fecha.toISOString().substring(0,10) %></td>
+            <td><%= stock.tapas %></td>
+            <td><%= stock.bidon_a3 %></td>
+            <td><%= stock.bidon_a4 %></td>
+            <td><%= stock.bases %></td>
+            <td class="actions">
+              <a href="/tapasbidones/edit/<%= stock.id %>" class="btn warning">Modificar</a>
+              <form action="/tapasbidones/delete/<%= stock.id %>" method="POST" onsubmit="return confirm('¿Eliminar este registro?');">
+                <button type="submit" class="danger">Eliminar</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+
+
+
+        <% if (diferenciasPorDia && diferenciasPorDia.length > 0) { %>
+          <% diferenciasPorDia.forEach(row => { %>
+            <tr>
+              <td><%= new Date(row.fecha).toLocaleDateString() %></td>
+              <td></td>
+              <td><%= row.A3 !== 0 ? row.A3 : '' %></td>
+              <td><%= row.A4 !== 0 ? row.A4 : '' %></td>
+              <td></td>
+              <td style="font-style: italic; color: #888">DIF DÍA</td>
+            </tr>
+          <% }) %>
+        <% } %>
+                <% if (diferenciasTotales) { %>
+          <tr class="diferencia-row" style="background-color: #f0f8ff; font-weight: bold;">
+            <td>DIFERENCIA</td>
+            <td><%= diferenciasTotales.totaltapas %></td>
+            <td><%= diferenciasTotales.difA3 %></td>
+            <td><%= diferenciasTotales.difA4 %></td>
+            <td><%= diferenciasTotales.difBase %></td>
+            <td></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+
+
+
+<% if (typeof reportCount !== 'undefined') { %>
+  <div class="report">
+    <h2>Informe de Ventas de Tapas</h2>
+    <p><strong>Período:</strong> <%= fechaDesde %> a <%= fechaHasta %></p>
+    <p><strong>Total de tapas vendidas:</strong> <%= reportCount %></p>
+    <% if (typeof totalBidonesBajados !== 'undefined') { %>
+      <p><strong>Total bajados A3:</strong> <%= bidonesA3 || 0 %></p>
+      <p><strong>Total bajados A4:</strong> <%= bidonesA4 || 0 %></p>
+      <p><strong>Suma A3 y A4 bidones bajados:</strong> <%= totalBidonesBajados %></p>
+    <% } %>
+    <% if (typeof vaciosA3 !== 'undefined' && typeof vaciosA4 !== 'undefined') { %>
+      <p><strong>Vacios A3:</strong> <%= vaciosA3 %></p>
+      <p><strong>Vacios A4:</strong> <%= vaciosA4 %></p>
+      <p><strong>Llenos A3:</strong> <%= llenosA3 %></p>
+      <p><strong>Llenos A4:</strong> <%= llenosA4 %></p>
+
+    <% } %>
+  </div>
+<% } %>
+
+<% if (resumenCardes && resumenCardes.length > 0) { %>
+  <div class="form-group">
+    <h2>Resumen de Movimientos (lleno + vacío)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Cod Rep</th>
+          <th>Cod Zona</th>
+          <th>Cod Prod</th>
+          <th>Lleno</th>
+          <th>Vacío</th>
+          <th>Carga</th>
+          <th>Total Movimiento</th>
+          <th>Diferencia</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% let totalA3 = 0, totalA4 = 0; %>
+        <% resumenCardes.forEach(row => { %>
+          <% const total = Number(row.lleno || 0) + Number(row.vacio || 0); %>
+          <% const dif = total - Number(row.carga || 0); %>
+          <% if (row.cod_prod === 'A3') totalA3 += total; %>
+          <% if (row.cod_prod === 'A4') totalA4 += total; %>
+          <tr>
+            <td><%= row.fecha ? new Date(row.fecha).toLocaleDateString() : '' %></td>
+            <td><%= row.cod_rep %></td>
+            <td><%= row.cod_zona %></td>
+            <td><%= row.cod_prod %></td>
+            <td><%= row.lleno %></td>
+            <td><%= row.vacio %></td>
+            <td><%= row.carga %></td>
+            <td><%= total %></td>
+            <td><%= dif %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+      <tfoot>
+        <tr style="font-weight:bold; background:#f0f0f0">
+          <td colspan="3">Total</td>
+          <td>A3</td>
+          <td colspan="5"><%= totalA3 %></td>
+        </tr>
+        <tr style="font-weight:bold; background:#f0f0f0">
+          <td colspan="3">Total</td>
+          <td>A4</td>
+          <td colspan="5"><%= totalA4 %></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <!-- Tabla nueva: resumen de diferencias globales -->
+<table style="margin-top: 30px;">
+  <thead>
+    <tr>
+      <th colspan="9" style="text-align: center; background-color: #ddd; font-size: 1.2em;">Resumen General de Diferencias y Movimientos</th>
+    </tr>
+  </thead>
+  <tfoot>
+
+    <tr style="font-weight:bold; background:#e0ffe0">
+      <td colspan="3">Recupero</td>
+      <td>A3</td>
+      <td colspan="5"><%= totalDiferenciaA3Pos %></td>
+    </tr>
+    <tr style="font-weight:bold; background:#e0ffe0">
+      <td colspan="3">Recupero</td>
+      <td>A4</td>
+      <td colspan="5"><%= totalDiferenciaA4Pos %></td>
+    </tr>
+    <tr style="font-weight:bold; background:#ffe0e0">
+      <td colspan="3">Prestó</td>
+      <td>A3</td>
+      <td colspan="5"><%= totalDiferenciaA3Neg %></td>
+    </tr>
+    <tr style="font-weight:bold; background:#ffe0e0">
+      <td colspan="3">Prestó</td>
+      <td>A4</td>
+      <td colspan="5"><%= totalDiferenciaA4Neg %></td>
+    </tr>
+    <tr style="font-weight:bold; background:#fdf0b0">
+      <td colspan="4">Total Pinchados</td>
+      <td colspan="5"><%= pinchados %></td>
+    </tr>
+  </tfoot>
+</table>
+<% } %>
+
+</body>
+</html>

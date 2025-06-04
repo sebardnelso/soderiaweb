@@ -1,0 +1,177 @@
+<!-- views/ventaplanta.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Venta en Planta</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    /* Contenedor general */
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1, h2 { color: #333; }
+
+    /* Botón Nueva Venta */
+    #btnNuevaVenta {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    #btnNuevaVenta:hover { background-color: #0056b3; }
+
+    /* Formulario oculto/visible */
+    .hidden { display: none; }
+    .form-section {
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: #fdfdfd;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .form-section fieldset {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .form-section legend {
+      padding: 0 5px;
+      font-weight: bold;
+    }
+    .form-section div {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+    .form-section label {
+      width: 150px;
+      font-weight: 500;
+    }
+    .form-section input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .form-section input[disabled] {
+      background: #eee;
+      color: #555;
+    }
+    .form-section button[type="submit"] {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .form-section button[type="submit"]:hover {
+      background-color: #218838;
+    }
+
+    /* Tabla de ventas */
+    table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+    th { background: #f0f0f0; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Venta en Planta</h1>
+  <button id="btnNuevaVenta">Nueva Venta</button>
+
+  <!-- Formulario oculto inicialmente -->
+  <div id="ventaForm" class="form-section hidden">
+    <form id="formVentaPlanta" method="POST" action="/venta-planta">
+      <!-- Carga de cliente -->
+      <div>
+        <label for="cod_cliente">Código Cliente:</label>
+        <input type="text" id="cod_cliente" name="cod_cliente" required>
+        <button type="button" id="btnCargarCliente">Cargar Datos</button>
+      </div>
+
+      <fieldset>
+        <legend>Datos del Cliente</legend>
+        <div><label>Nombre:</label><input type="text" id="nom_cliente" disabled></div>
+        <div><label>Domicilio:</label><input type="text" id="domicilio" disabled></div>
+        <div><label>Saldo A3:</label><input type="number" id="saldiA3" disabled></div>
+        <div><label>Saldo A4:</label><input type="number" id="saldiA4" disabled></div>
+        <div><label>Repartidor:</label><input type="text" id="cod_rep" disabled></div>
+        <div><label>Zona:</label><input type="text" id="cod_zona" disabled></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Detalle Venta</legend>
+        <div><label for="cod_prod">Producto (A3/A4):</label><input type="text" id="cod_prod" name="cod_prod" required></div>
+        <div><label for="cantidad">Cantidad:</label><input type="number" id="cantidad" name="cantidad" min="0" required></div>
+        <div><label for="bidones_devolvio">Bidones Devueltos:</label><input type="number" id="bidones_devolvio" name="bidones_devolvio" min="0" required></div>
+        <div><label for="pago_efectivo">Pago Efectivo:</label><input type="number" id="pago_efectivo" name="pago_efectivo" min="0" value="0" required></div>
+        <div><label for="pago_ctacte">Cuenta Corriente:</label><input type="number" id="pago_ctacte" name="pago_ctacte" min="0" value="0" required></div>
+        <div><label for="fecha">Fecha:</label><input type="date" id="fecha" name="fecha" value="<%= new Date().toISOString().slice(0,10) %>" required></div>
+        <button type="submit">Guardar Venta</button>
+      </fieldset>
+    </form>
+  </div>
+
+  <h2>Ventas en Planta</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Código Cliente</th>
+        <th>Producto</th>
+        <th>Cantidad</th>
+        <th>Pago Efectivo</th>
+        <th>Cuenta Corriente</th>
+        <th>Bidones Devueltos</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% ventasPlanta.forEach(v => { %>
+        <tr>
+          <td><%= v.fecha.toISOString().slice(0,10) %></td>
+          <td><%= v.cod_cliente %></td>
+          <td><%= v.cod_prod %></td>
+          <td><%= v.cantidad %></td>
+          <td><%= v.pago_efectivo %></td>
+          <td><%= v.pago_ctacte %></td>
+          <td><%= v.bidones_devolvio %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <script>
+    const btnNueva = document.getElementById('btnNuevaVenta');
+    const formDiv = document.getElementById('ventaForm');
+    btnNueva.addEventListener('click', () => {
+      formDiv.classList.toggle('hidden');
+    });
+
+    document.getElementById('btnCargarCliente').addEventListener('click', async () => {
+      const cod = document.getElementById('cod_cliente').value.trim();
+      if (!cod) return alert('Ingresa un código de cliente');
+      try {
+        const res = await fetch(`/api/cliente-header?cod_cliente=${cod}`);
+        const data = await res.json();
+        if (!data.success) return alert(data.message || 'Cliente no encontrado');
+
+        document.getElementById('nom_cliente').value = data.nom_cliente;
+        document.getElementById('domicilio').value  = data.domicilio;
+        document.getElementById('saldiA3').value     = data.saldiA3;
+        document.getElementById('saldiA4').value     = data.saldiA4;
+        document.getElementById('cod_rep').value    = 100;
+        document.getElementById('cod_zona').value   = 100;
+      } catch (err) {
+        console.error(err);
+        alert('Error al cargar datos del cliente');
+      }
+    });
+  </script>
+</body>
+</html>
